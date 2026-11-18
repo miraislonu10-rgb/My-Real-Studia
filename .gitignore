@@ -1,0 +1,44 @@
+# ---------------------------------------------------------------------------
+# STUDIA - .gitignore raiz (reglas comunes a todo el repositorio)
+# ---------------------------------------------------------------------------
+
+# Dependencias
+node_modules/
+
+# Variables de entorno y secretos (NUNCA subir .env reales)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Artefactos de compilacion
+dist/
+build/
+coverage/
+.vite/
+.cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Respaldos locales de base de datos
+dumps/
+*.sql.bak
+*.sql.gz
+
+# Editores y sistema operativo
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Trazas temporales
+tmp/
+temp/

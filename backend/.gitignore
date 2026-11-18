@@ -1,0 +1,20 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Cobertura y temporales
+coverage/
+.cache/
+tmp/
+
+# Respaldos locales de BD
+dumps/

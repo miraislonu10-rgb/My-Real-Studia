@@ -1,0 +1,239 @@
+/* ==========================================================================
+   STUDIA - Estilos base del cliente
+   ========================================================================== */
+
+:root {
+  --color-bg: #f4f6fb;
+  --color-surface: #ffffff;
+  --color-border: #e2e6ef;
+  --color-text: #1c2338;
+  --color-text-soft: #5c6784;
+  --color-primary: #3f51b5;
+  --color-primary-dark: #2c3a86;
+  --color-success: #1b7f4b;
+  --color-success-bg: #e8f6ee;
+  --color-danger: #b3261e;
+  --color-danger-bg: #fdecea;
+  --radius: 10px;
+  --shadow: 0 2px 10px rgba(28, 35, 56, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  line-height: 1.55;
+}
+
+code {
+  background: #eef1f8;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app__logo {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.app__title {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: 0.08em;
+}
+
+.app__subtitle {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: 0.82rem;
+}
+
+.app__nav a {
+  color: var(--color-text-soft);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius);
+}
+
+.app__nav a.active,
+.app__nav a:hover {
+  background: #eef1f8;
+  color: var(--color-primary);
+}
+
+.app__main {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.app__footer {
+  padding: 1.25rem 2rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-soft);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.app__footer p {
+  margin: 0;
+}
+
+.page__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+}
+
+.page__text {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-soft);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.list li {
+  margin-bottom: 0.4rem;
+}
+
+.list span {
+  display: block;
+  color: var(--color-text-soft);
+  font-size: 0.85rem;
+}
+
+.status {
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid transparent;
+}
+
+.status--loading {
+  background: #eef1f8;
+  color: var(--color-text-soft);
+}
+
+.status--ok {
+  background: var(--color-success-bg);
+  border-color: #bfe3cd;
+  color: var(--color-success);
+}
+
+.status--error {
+  background: var(--color-danger-bg);
+  border-color: #f3c4c0;
+  color: var(--color-danger);
+}
+
+.status p {
+  margin: 0.35rem 0 0;
+}
+
+.hint {
+  color: var(--color-text-soft);
+  font-size: 0.85rem;
+}
+
+.hint--warning {
+  color: #8a5a00;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem 0.25rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  vertical-align: top;
+}
+
+.table th {
+  width: 180px;
+  color: var(--color-text-soft);
+  font-weight: 600;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
