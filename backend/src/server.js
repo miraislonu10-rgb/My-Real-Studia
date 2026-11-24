@@ -8,6 +8,7 @@
 import app from './app.js';
 import { env, assertEnv } from './config/env.js';
 import { testConnection, closePool } from './config/database.js';
+import { runMigrations } from './config/migrate.js';
 
 const start = async () => {
   assertEnv();
@@ -15,6 +16,7 @@ const start = async () => {
   try {
     const info = await testConnection();
     console.log(`[db]  Conexion establecida con "${info.database}" en ${info.host}:${info.port}`);
+    await runMigrations();
   } catch (error) {
     console.warn(`[db]  No se pudo conectar a MySQL: ${error.message}`);
     console.warn('[db]  El servidor arrancara igualmente. Importa backend/database/studia_database.sql desde phpMyAdmin.');

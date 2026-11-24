@@ -1,0 +1,346 @@
+/* ==========================================================================
+   STUDIA · php-practice
+   Hoja de estilos del módulo complementario. Mantiene la paleta de STUDIA
+   (lavanda, blanco, gris cálido, azul grisáceo y verde suave) y está pensada
+   para ser responsive y accesible (contraste AA y foco visible).
+   ========================================================================== */
+
+:root {
+  --lav-100: #ebe7fa;
+  --lav-500: #8574d8;
+  --lav-700: #5a4aa3;
+  --warm-50: #faf9f7;
+  --warm-100: #f4f1ed;
+  --warm-200: #e9e4de;
+  --slate-500: #64748b;
+  --slate-600: #4c5869;
+  --slate-700: #3a4453;
+  --heading: #333b48;
+  --green-500: #3d8a64;
+  --green-bg: #e7f5ec;
+  --danger: #a83c34;      /* oscurecido para cumplir contraste AA sobre blanco */
+  --danger-bg: #fbeceb;
+  --warning: #8a5f27;     /* oscurecido para cumplir contraste AA */
+  --warning-bg: #fbf2e5;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--warm-50);
+  color: var(--slate-700);
+  font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+a { color: var(--lav-700); }
+
+:focus-visible {
+  outline: 3px solid var(--lav-500);
+  outline-offset: 2px;
+}
+
+/* Enlace "saltar al contenido": visible sólo al enfocarlo con el teclado. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: var(--lav-700);
+  color: #fff;
+  border-radius: 0 0 var(--radius-sm) 0;
+  text-decoration: none;
+  font-weight: 600;
+}
+.skip-link:focus { left: 0; }
+
+/* --------------------------------------------------------------------------
+   Barra superior y navegación
+   -------------------------------------------------------------------------- */
+
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid var(--warm-200);
+}
+
+.topbar__inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0.9rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.brand__logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--lav-500);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.brand__title { display: block; color: var(--heading); font-size: 1rem; }
+.brand__subtitle { display: block; color: var(--slate-500); font-size: 0.78rem; }
+
+.nav { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.nav__link {
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  color: var(--slate-600);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.nav__link:hover { background: var(--warm-100); }
+.nav__link--active { background: var(--lav-100); color: var(--lav-700); }
+
+/* --------------------------------------------------------------------------
+   Contenido
+   -------------------------------------------------------------------------- */
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+}
+
+.page__head { margin-bottom: 1.5rem; }
+.page__title { margin: 0 0 0.35rem; color: var(--heading); font-size: 1.5rem; }
+.page__intro { margin: 0; color: var(--slate-600); }
+
+.card {
+  background: #fff;
+  border: 1px solid var(--warm-200);
+  border-radius: var(--radius);
+  padding: 1.35rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 2px rgba(58, 68, 83, 0.05);
+}
+
+.card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--heading); }
+.card h3 { margin: 0 0 0.5rem; font-size: 0.98rem; color: var(--heading); }
+.card p:last-child { margin-bottom: 0; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Formularios
+   -------------------------------------------------------------------------- */
+
+.form { display: grid; gap: 1rem; }
+
+.form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.field { display: grid; gap: 0.35rem; }
+.field > label { font-weight: 600; font-size: 0.88rem; color: var(--slate-600); }
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cfd6de;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--slate-700);
+  font: inherit;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--lav-500);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--lav-100);
+}
+
+.field--invalid input,
+.field--invalid select,
+.field--invalid textarea { border-color: var(--danger); }
+
+.field__error { color: var(--danger); font-size: 0.82rem; font-weight: 600; }
+.field__hint { color: var(--slate-500); font-size: 0.82rem; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+/* --------------------------------------------------------------------------
+   Botones
+   -------------------------------------------------------------------------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.58rem 1.15rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--lav-500);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover { background: var(--lav-700); }
+
+.button--ghost {
+  background: transparent;
+  border-color: var(--warm-200);
+  color: var(--slate-600);
+}
+.button--ghost:hover { background: var(--warm-100); color: var(--slate-700); }
+
+.button--danger { background: var(--danger); }
+.button--danger:hover { background: #8d3129; }
+
+.button--small { padding: 0.35rem 0.75rem; font-size: 0.82rem; }
+
+/* --------------------------------------------------------------------------
+   Avisos y etiquetas
+   -------------------------------------------------------------------------- */
+
+.alert {
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.92rem;
+  border-left: 4px solid transparent;
+}
+.alert--success { background: var(--green-bg); color: var(--green-500); border-left-color: var(--green-500); }
+.alert--error { background: var(--danger-bg); color: var(--danger); border-left-color: var(--danger); }
+.alert--info { background: var(--warm-100); color: var(--slate-600); border-left-color: var(--slate-500); }
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge--get { background: var(--lav-100); color: var(--lav-700); }
+.badge--post { background: var(--warning-bg); color: var(--warning); }
+.badge--ok { background: var(--green-bg); color: var(--green-500); }
+
+/* --------------------------------------------------------------------------
+   Tablas
+   -------------------------------------------------------------------------- */
+
+.table-wrap { overflow-x: auto; }
+
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+table.table th,
+table.table td {
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--warm-200);
+  vertical-align: top;
+}
+
+table.table thead th {
+  background: var(--warm-100);
+  color: var(--slate-600);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+table.table tbody tr:hover { background: var(--warm-50); }
+
+.table--compact th { width: 34%; white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   Utilidades
+   -------------------------------------------------------------------------- */
+
+.list { margin: 0; padding-left: 1.1rem; }
+.list li { margin-bottom: 0.35rem; }
+
+code {
+  background: var(--warm-100);
+  border-radius: 5px;
+  padding: 0.1rem 0.35rem;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 0.88em;
+}
+
+pre.code-block {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: #2f3542;
+  color: #eaeaf0;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-size: 0.84rem;
+}
+
+.empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--slate-500);
+  background: var(--warm-50);
+  border: 1px dashed var(--warm-200);
+  border-radius: var(--radius-sm);
+}
+
+.hint { color: var(--slate-500); font-size: 0.85rem; }
+
+/* --------------------------------------------------------------------------
+   Pie
+   -------------------------------------------------------------------------- */
+
+.footer {
+  border-top: 1px solid var(--warm-200);
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--slate-500);
+  font-size: 0.82rem;
+}
+
+/* --------------------------------------------------------------------------
+   Adaptación a pantallas pequeñas
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .page__title { font-size: 1.25rem; }
+  .topbar__inner { flex-direction: column; align-items: flex-start; }
+  .table--compact th { width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

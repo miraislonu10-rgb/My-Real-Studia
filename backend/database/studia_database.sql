@@ -9,7 +9,9 @@
 --  CONTENIDO
 --    1. Creacion de la base de datos
 --    2. Eliminacion controlada de tablas (permite reejecutar el script)
---    3. Definicion de las 15 tablas, indices y restricciones de integridad
+--    3. Definicion de las 18 tablas, indices y restricciones de integridad
+--       (15 tablas de dominio del estudiante + 1 catalogo de recursos
+--        educativos + 2 tablas de seguridad de sesiones y tokens)
 --    4. Datos de demostracion claramente identificados (dominio @studia.demo)
 --    5. Consultas de verificacion de relaciones
 --
@@ -50,6 +52,9 @@ SET time_zone = '+00:00';
 -- -----------------------------------------------------------------------------
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `educational_resources`;
+DROP TABLE IF EXISTS `password_reset_tokens`;
+DROP TABLE IF EXISTS `refresh_tokens`;
 DROP TABLE IF EXISTS `achievements`;
 DROP TABLE IF EXISTS `flashcards`;
 DROP TABLE IF EXISTS `weekly_reports`;
@@ -199,11 +204,16 @@ CREATE TABLE `topics` (
 CREATE TABLE `study_sessions` (
   `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id`          BIGINT UNSIGNED NOT NULL,
+  `client_session_id` VARCHAR(64)    NULL COMMENT 'Evita duplicidad de sesiones',
   `subject_id`       BIGINT UNSIGNED NULL,
   `topic_id`         BIGINT UNSIGNED NULL,
   `started_at`       DATETIME        NOT NULL,
   `ended_at`         DATETIME        NULL,
   `duration_minutes` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  `duration_seconds` INT UNSIGNED    NOT NULL DEFAULT 0,
+  `paused_seconds`   INT UNSIGNED    NOT NULL DEFAULT 0,
+  `is_paused`        TINYINT(1)      NOT NULL DEFAULT 0,
+  `last_paused_at`   DATETIME        NULL,
   `session_type`     ENUM('pomodoro','free','review','exam_practice') NOT NULL DEFAULT 'pomodoro',
   `focus_score`      TINYINT UNSIGNED NULL COMMENT 'Nivel de concentracion percibido (1-5)',
   `mood`             ENUM('motivated','neutral','tired','stressed','distracted') NULL,
@@ -239,6 +249,10 @@ CREATE TABLE `tasks` (
   `due_date`          DATETIME        NULL,
   `priority`          ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
   `status`            ENUM('pending','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending',
+  `goal_period`       ENUM('none','daily','weekly') NOT NULL DEFAULT 'none',
+  `scheduled_date`    DATE            NULL,
+  `scheduled_start_time` TIME         NULL,
+  `scheduled_end_time`   TIME         NULL,
   `estimated_minutes` SMALLINT UNSIGNED NULL,
   `actual_minutes`    SMALLINT UNSIGNED NULL,
   `completed_at`      DATETIME        NULL,
@@ -338,13 +352,18 @@ CREATE TABLE `errors` (
   `subject_id`       BIGINT UNSIGNED NULL,
   `topic_id`         BIGINT UNSIGNED NULL,
   `exercise_id`      BIGINT UNSIGNED NULL,
+  `exercise_title`   VARCHAR(255)    NULL COMMENT 'Nombre o referencia del ejercicio',
   `attempt_id`       BIGINT UNSIGNED NULL COMMENT 'Intento concreto en el que ocurrio el error',
   `title`            VARCHAR(200)    NOT NULL,
   `description`      TEXT            NULL COMMENT 'Que ocurrio exactamente',
-  `error_type`       ENUM('conceptual','procedural','careless','interpretation','time_management')
+  `user_answer`      TEXT            NULL COMMENT 'Respuesta proporcionada por el estudiante',
+  `correct_answer`   TEXT            NULL COMMENT 'Respuesta correcta esperada',
+  `explanation`      TEXT            NULL COMMENT 'Explicacion de por que fue error y como resolverlo',
+  `error_type`       ENUM('conceptual','procedural','calculation','interpretation','memory','careless','time_management')
                                      NOT NULL DEFAULT 'conceptual',
   `severity`         ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
-  `status`           ENUM('open','in_review','resolved') NOT NULL DEFAULT 'open',
+  `status`           ENUM('pending','in_review','understood','open','resolved') NOT NULL DEFAULT 'pending',
+  `error_date`       DATE            NULL,
   `root_cause`       TEXT            NULL COMMENT 'Causa raiz identificada',
   `correction_notes` TEXT            NULL COMMENT 'Como se corrige y que se debe recordar',
   `review_count`     SMALLINT UNSIGNED NOT NULL DEFAULT 0,
@@ -382,6 +401,13 @@ CREATE TABLE `learning_preferences` (
   `id`                       BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id`                  BIGINT UNSIGNED NOT NULL,
   `learning_style`           ENUM('visual','auditory','reading','kinesthetic','mixed') NOT NULL DEFAULT 'mixed',
+  `step_by_step_pref`        TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Preferencia por explicaciones paso a paso (1-5)',
+  `problem_solving_pref`     TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Resolucion practica de problemas (1-5)',
+  `concept_maps_pref`        TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Uso de esquemas y mapas conceptuales (1-5)',
+  `questioning_pref`         TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Practica mediante preguntas (1-5)',
+  `spaced_repetition_pref`   TINYINT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'Repeticion espaciada (1-5)',
+  `break_frequency_minutes`  SMALLINT UNSIGNED NOT NULL DEFAULT 5 COMMENT 'Frecuencia/duracion de descansos en minutos',
+  `dynamic_profile`          JSON            NULL COMMENT 'Perfil dinamico multidimensional calculado',
   `preferred_session_length` SMALLINT UNSIGNED NOT NULL DEFAULT 25 COMMENT 'Minutos por bloque de estudio',
   `preferred_study_time`     ENUM('early_morning','morning','afternoon','evening','night','flexible')
                                                   NOT NULL DEFAULT 'flexible',
@@ -586,6 +612,89 @@ CREATE TABLE `achievements` (
   CONSTRAINT `chk_achievements_points` CHECK (`points` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Logros del estudiante';
+
+-- -----------------------------------------------------------------------------
+-- 3.16 refresh_tokens : sesiones activas del usuario (autenticacion JWT)
+--      El token de refresco se guarda UNICAMENTE como HMAC-SHA256. Guardarlo
+--      hasheado permite revocar sesiones (logout real) e invalida el robo del
+--      archivo de base de datos como via para suplantar sesiones.
+-- -----------------------------------------------------------------------------
+CREATE TABLE `refresh_tokens` (
+  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`        BIGINT UNSIGNED NOT NULL,
+  `token_hash`     CHAR(64)        NOT NULL COMMENT 'HMAC-SHA256 del token; nunca se almacena el token en claro',
+  `user_agent`     VARCHAR(255)    NULL COMMENT 'Dispositivo o navegador de la sesion',
+  `ip_address`     VARCHAR(45)     NULL COMMENT 'Soporta IPv4 e IPv6',
+  `expires_at`     DATETIME        NOT NULL,
+  `revoked_at`     DATETIME        NULL COMMENT 'Fecha de cierre de sesion o de rotacion',
+  `revoked_reason` ENUM('logout','rotation','password_change','admin') NULL,
+  `last_used_at`   DATETIME        NULL,
+  `created_at`     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_refresh_tokens_hash` (`token_hash`),
+  KEY `idx_refresh_tokens_user` (`user_id`, `revoked_at`),
+  KEY `idx_refresh_tokens_expires` (`expires_at`),
+  CONSTRAINT `fk_refresh_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_refresh_tokens_revoked` CHECK (
+    (`revoked_at` IS NOT NULL AND `revoked_reason` IS NOT NULL) OR `revoked_at` IS NULL
+  )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Sesiones activas y tokens de refresco (permiten cerrar sesion de verdad)';
+
+-- -----------------------------------------------------------------------------
+-- 3.17 password_reset_tokens : recuperacion de contraseña
+--      Un solo uso (used_at) y con caducidad corta (expires_at).
+-- -----------------------------------------------------------------------------
+CREATE TABLE `password_reset_tokens` (
+  `id`           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`      BIGINT UNSIGNED NOT NULL,
+  `token_hash`   CHAR(64)        NOT NULL COMMENT 'HMAC-SHA256 del token enviado por correo',
+  `requested_ip` VARCHAR(45)     NULL,
+  `expires_at`   DATETIME        NOT NULL,
+  `used_at`      DATETIME        NULL COMMENT 'NULL = token aun no utilizado',
+  `created_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_password_reset_hash` (`token_hash`),
+  KEY `idx_password_reset_user` (`user_id`, `used_at`),
+  KEY `idx_password_reset_expires` (`expires_at`),
+  CONSTRAINT `fk_password_reset_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Tokens de recuperacion de contraseña (un solo uso)';
+
+-- -----------------------------------------------------------------------------
+-- 3.18 educational_resources : catalogo de recursos educativos
+--      Contenido GLOBAL gestionado por el administrador y disponible para todos
+--      los estudiantes. No pertenece a un estudiante concreto: created_by
+--      registra quien lo publico. Enlaza a material externo (curso, video,
+--      articulo, libro, documento...).
+-- -----------------------------------------------------------------------------
+CREATE TABLE `educational_resources` (
+  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `created_by`       BIGINT UNSIGNED NOT NULL COMMENT 'Administrador que publico el recurso',
+  `title`            VARCHAR(200)    NOT NULL,
+  `description`      TEXT            NULL,
+  `resource_type`    ENUM('link','article','video','book','document','course','other') NOT NULL DEFAULT 'link',
+  `url`              VARCHAR(500)    NOT NULL,
+  `provider`         VARCHAR(150)    NULL COMMENT 'Fuente: Khan Academy, Coursera...',
+  `area`             VARCHAR(120)    NULL COMMENT 'Area o materia sugerida (texto libre)',
+  `difficulty_level` ENUM('easy','medium','hard') NOT NULL DEFAULT 'medium',
+  `language`         CHAR(5)         NOT NULL DEFAULT 'es',
+  `is_published`     TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '0 = oculto a los estudiantes',
+  `created_at`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_resources_published` (`is_published`, `created_at`),
+  KEY `idx_resources_type` (`resource_type`),
+  KEY `idx_resources_area` (`area`),
+  CONSTRAINT `fk_resources_creator` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_resources_url` CHECK (`url` LIKE 'http%')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Catalogo de recursos educativos (gestionado por el administrador)';
 
 -- =============================================================================
 -- 4. DATOS DE DEMOSTRACION
@@ -862,11 +971,25 @@ VALUES
   (6, 3, 'week_goal', 'Meta semanal cumplida', 'Alcanza tu meta semanal de estudio.', 'consistency', 'calendar', 40,
    420, 115, NULL);
 
+-- --- Recursos educativos (catalogo global del administrador) ------------------
+INSERT INTO `educational_resources`
+  (`id`, `created_by`, `title`, `description`, `resource_type`, `url`, `provider`, `area`,
+   `difficulty_level`, `language`, `is_published`)
+VALUES
+  (1, 1, 'Curso de Calculo diferencial', 'Videos y ejercicios de derivadas e integrales.', 'course',
+   'https://es.khanacademy.org/math/calculus-1', 'Khan Academy', 'Matematicas', 'hard', 'es', 1),
+  (2, 1, 'Documentacion oficial de React', 'Guia de componentes, props, estado y hooks.', 'document',
+   'https://react.dev/learn', 'React', 'Programacion Web', 'medium', 'es', 1),
+  (3, 1, 'Gramatica inglesa nivel B1', 'Explicaciones y practica del nivel intermedio.', 'article',
+   'https://learnenglish.britishcouncil.org/grammar/b1-b2-grammar', 'British Council', 'Ingles B1', 'medium', 'es', 1),
+  (4, 1, 'Fisica: cinematica y leyes de Newton', 'Videos explicativos de movimiento y fuerza.', 'video',
+   'https://es.khanacademy.org/science/physics', 'Khan Academy', 'Fisica', 'medium', 'es', 0);
+
 -- =============================================================================
 -- 5. VERIFICACION DE RELACIONES Y CONSULTAS
 -- =============================================================================
 
--- 5.1 Tablas creadas (deben ser 15)
+-- 5.1 Tablas creadas (deben ser 18)
 SELECT COUNT(*) AS `tablas_creadas`
   FROM information_schema.tables
  WHERE table_schema = 'studia_db';
@@ -964,7 +1087,10 @@ UNION ALL SELECT 'study_plans', COUNT(*) FROM study_plans
 UNION ALL SELECT 'recommendations', COUNT(*) FROM recommendations
 UNION ALL SELECT 'weekly_reports', COUNT(*) FROM weekly_reports
 UNION ALL SELECT 'flashcards', COUNT(*) FROM flashcards
-UNION ALL SELECT 'achievements', COUNT(*) FROM achievements;
+UNION ALL SELECT 'achievements', COUNT(*) FROM achievements
+UNION ALL SELECT 'refresh_tokens', COUNT(*) FROM refresh_tokens
+UNION ALL SELECT 'password_reset_tokens', COUNT(*) FROM password_reset_tokens
+UNION ALL SELECT 'educational_resources', COUNT(*) FROM educational_resources;
 
 -- =============================================================================
 --  FIN DEL SCRIPT - STUDIA

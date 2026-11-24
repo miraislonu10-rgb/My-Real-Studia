@@ -1,0 +1,289 @@
+### =============================================================================
+### STUDIA - Colección de Pruebas de API REST (HTTP Request Collection)
+### =============================================================================
+### Compatible con VS Code REST Client, IntelliJ HTTP Client y Postman.
+### Variables del entorno local
+@baseUrl = http://localhost:4000/api
+@email = ana@studia.demo
+@password = StudiaDemo123!
+
+### -----------------------------------------------------------------------------
+### 1. HEALTH CHECKS
+### -----------------------------------------------------------------------------
+
+### 1.1 Estado general de la API
+GET {{baseUrl}}/health
+
+### 1.2 Estado de la base de datos MySQL
+GET {{baseUrl}}/health/db
+
+### 1.3 Catálogo y documentación completa de endpoints
+GET {{baseUrl}}/docs
+
+### -----------------------------------------------------------------------------
+### 2. AUTENTICACIÓN
+### -----------------------------------------------------------------------------
+
+### 2.1 Iniciar sesión (Login)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Extraer token de acceso de la respuesta
+@authToken = {{login.response.body.data.accessToken}}
+
+### 2.2 Consultar usuario autenticado
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+### -----------------------------------------------------------------------------
+### 3. SMART FOCUS — CRONÓMETRO INTELIGENTE
+### -----------------------------------------------------------------------------
+
+### 3.1 Consultar sesión activa en curso
+GET {{baseUrl}}/study-sessions/active
+Authorization: Bearer {{authToken}}
+
+### 3.2 Iniciar nueva sesión de estudio (POST)
+# @name startSession
+POST {{baseUrl}}/study-sessions/start
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "subjectId": 1,
+  "sessionType": "pomodoro",
+  "notes": "Estudio intensivo de derivadas",
+  "clientSessionId": "test-uuid-client-1234"
+}
+
+@sessionId = {{startSession.response.body.data.session.id}}
+
+### 3.3 Pausar sesión (POST)
+POST {{baseUrl}}/study-sessions/{{sessionId}}/pause
+Authorization: Bearer {{authToken}}
+
+### 3.4 Reanudar sesión (POST)
+POST {{baseUrl}}/study-sessions/{{sessionId}}/resume
+Authorization: Bearer {{authToken}}
+
+### 3.5 Finalizar sesión y registrar productividad (POST)
+POST {{baseUrl}}/study-sessions/{{sessionId}}/finish
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "focusScore": 5,
+  "notes": "Completé con éxito todos los ejercicios de prueba.",
+  "mood": "motivated"
+}
+
+### 3.6 Consultar historial de sesiones (GET)
+GET {{baseUrl}}/study-sessions?limit=5
+Authorization: Bearer {{authToken}}
+
+### -----------------------------------------------------------------------------
+### 4. SMART PLANNER — TAREAS Y OBJETIVOS (CRUD COMPLETO)
+### -----------------------------------------------------------------------------
+
+### 4.1 Crear tarea u objetivo (POST)
+# @name createTask
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Preparar examen de Cálculo Vectorial",
+  "description": "Repasar integrales dobles y triples",
+  "priority": "high",
+  "dueDate": "2026-11-25T18:00:00Z",
+  "scheduledDate": "2026-11-20",
+  "scheduledStartTime": "16:00",
+  "scheduledEndTime": "17:30",
+  "goalPeriod": "weekly",
+  "estimatedMinutes": 90
+}
+
+@taskId = {{createTask.response.body.data.task.id}}
+
+### 4.2 Obtener detalle de tarea (GET)
+GET {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{authToken}}
+
+### 4.3 Actualizar tarea (PUT)
+PUT {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "title": "Preparar examen de Cálculo Vectorial (Actualizado)",
+  "priority": "urgent",
+  "estimatedMinutes": 120
+}
+
+### 4.4 Cambiar estado de tarea (PATCH)
+PATCH {{baseUrl}}/tasks/{{taskId}}/status
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "status": "completed"
+}
+
+### 4.5 Consultar objetivos diarios y semanales (GET)
+GET {{baseUrl}}/tasks/goals
+Authorization: Bearer {{authToken}}
+
+### 4.6 Consultar calendario (GET)
+GET {{baseUrl}}/tasks/calendar?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z
+Authorization: Bearer {{authToken}}
+
+### 4.7 Recomendaciones de reorganización sin conflictos (GET)
+GET {{baseUrl}}/tasks/recommendations/reschedule
+Authorization: Bearer {{authToken}}
+
+### 4.8 Eliminar tarea (DELETE)
+DELETE {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{authToken}}
+
+### -----------------------------------------------------------------------------
+### 5. ERROR JOURNAL — DIARIO DE ERRORES (CRUD COMPLETO)
+### -----------------------------------------------------------------------------
+
+### 5.1 Registrar nuevo error (POST)
+# @name createError
+POST {{baseUrl}}/errors
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "exerciseTitle": "Derivada de función compuesta",
+  "subjectId": 1,
+  "userAnswer": "2x * sin(x)",
+  "correctAnswer": "2x * cos(x^2)",
+  "explanation": "Olvidé aplicar la regla de la cadena a la función interior x^2.",
+  "errorType": "conceptual",
+  "status": "pending",
+  "errorDate": "2026-11-17"
+}
+
+@errorId = {{createError.response.body.data.error.id}}
+
+### 5.2 Obtener detalle de error (GET)
+GET {{baseUrl}}/errors/{{errorId}}
+Authorization: Bearer {{authToken}}
+
+### 5.3 Actualizar error (PUT)
+PUT {{baseUrl}}/errors/{{errorId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "explanation": "Regla de la cadena: d/dx[f(g(x))] = f'(g(x)) * g'(x). Recordar derivar el argumento interior."
+}
+
+### 5.4 Cambiar estado de revisión (PATCH)
+PATCH {{baseUrl}}/errors/{{errorId}}/status
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "status": "understood"
+}
+
+### 5.5 Eliminar error (DELETE)
+DELETE {{baseUrl}}/errors/{{errorId}}
+Authorization: Bearer {{authToken}}
+
+### -----------------------------------------------------------------------------
+### 6. MEMORY LAB — REPETICIÓN ESPACIADA (SM-2)
+### -----------------------------------------------------------------------------
+
+### 6.1 Crear tarjeta de memoria (POST)
+# @name createFlashcard
+POST {{baseUrl}}/flashcards
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "frontText": "¿Cuál es la derivada de ln(u)?",
+  "backText": "u' / u (derivada de u dividido entre u)",
+  "hint": "Regla logarítmica",
+  "difficultyLevel": "medium"
+}
+
+@flashcardId = {{createFlashcard.response.body.data.flashcard.id}}
+
+### 6.2 Consultar tarjetas pendientes de repaso para hoy (GET)
+GET {{baseUrl}}/flashcards/pending
+Authorization: Bearer {{authToken}}
+
+### 6.3 Evaluar nivel de comprensión con SM-2 (POST)
+# Calificación: 0=olvido, 3=dificil, 4=bueno, 5=perfecto
+POST {{baseUrl}}/flashcards/{{flashcardId}}/review
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "rating": 5,
+  "timeTakenSeconds": 8
+}
+
+### 6.4 Consultar historial de repasos (GET)
+GET {{baseUrl}}/flashcards/history
+Authorization: Bearer {{authToken}}
+
+### 6.5 Eliminar tarjeta (DELETE)
+DELETE {{baseUrl}}/flashcards/{{flashcardId}}
+Authorization: Bearer {{authToken}}
+
+### -----------------------------------------------------------------------------
+### 7. ACADEMIC ANALYTICS — ESTADÍSTICAS E INFORME SEMANAL
+### -----------------------------------------------------------------------------
+
+### 7.1 Resumen global y filtros por fechas (GET)
+GET {{baseUrl}}/analytics/overview?from=2026-11-01&to=2026-11-30
+Authorization: Bearer {{authToken}}
+
+### 7.2 Informe semanal con comparativa histórica real (GET)
+GET {{baseUrl}}/analytics/weekly-report
+Authorization: Bearer {{authToken}}
+
+### -----------------------------------------------------------------------------
+### 8. STUDIA AI COMPANION — TUTOR PEDAGÓGICO
+### -----------------------------------------------------------------------------
+
+### 8.1 Explicar concepto académico (POST)
+POST {{baseUrl}}/ai/companion
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "action": "explain_concept",
+  "prompt": "Regla de la cadena en cálculo diferencial",
+  "subjectName": "Cálculo"
+}
+
+### 8.2 Proporcionar pista progresiva (POST)
+POST {{baseUrl}}/ai/companion
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "action": "provide_hint",
+  "exerciseText": "Calcular la integral de x * e^(x^2) dx"
+}
+
+### 8.3 Analizar errores frecuentes del estudiante (POST)
+POST {{baseUrl}}/ai/companion
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "action": "analyze_frequent_errors"
+}

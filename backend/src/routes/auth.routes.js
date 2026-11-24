@@ -1,28 +1,48 @@
 /**
- * STUDIA - Rutas iniciales de autenticacion (/api/auth)
+ * STUDIA - Rutas de autenticacion (/api/auth)
  * ------------------------------------------------------------------
- * Modulo aun no implementado: se define el contrato de la API para que el
- * frontend pueda integrarse sin cambios cuando se desarrolle el modulo.
- * Cada endpoint responde 501 (Not Implemented) de forma explicita.
+ * Cada endpoint combina, en este orden:
+ *   limite de peticiones  ->  validacion de formulario  ->  controlador
+ * Las rutas privadas añaden el middleware `authenticate`.
  */
 
 import { Router } from 'express';
 
+import * as authController from '../controllers/auth.controller.js';
+import { validate } from '../middlewares/validate.js';
+import { authenticate } from '../middlewares/auth.js';
+import { authRateLimiter } from '../middlewares/rateLimiters.js';
+import {
+  registerValidator,
+  loginValidator,
+  refreshValidator,
+  logoutValidator,
+  forgotPasswordValidator,
+  resetPasswordValidator,
+} from '../validators/auth.validators.js';
+
 const router = Router();
 
-const pending = (endpoint) => (req, res) => {
-  res.status(501).json({
-    success: false,
-    error: 'NOT_IMPLEMENTED',
-    message: `El endpoint ${endpoint} se implementara en el modulo de autenticacion.`,
-    data: null,
-  });
-};
+// Registro publico (solo crea estudiantes)
+router.post('/register', authRateLimiter, validate(registerValidator), authController.register);
 
-router.post('/register', pending('POST /api/auth/register'));
-router.post('/login', pending('POST /api/auth/login'));
-router.post('/refresh', pending('POST /api/auth/refresh'));
-router.post('/logout', pending('POST /api/auth/logout'));
-router.get('/me', pending('GET /api/auth/me'));
+// Inicio de sesion
+router.post('/login', authRateLimiter, validate(loginValidator), authController.login);
+
+// Renovacion de sesion con rotacion del token de refresco
+router.post('/refresh', authRateLimiter, validate(refreshValidator), authController.refresh);
+
+// Cierre de sesion (idempotente)
+router.post('/logout', validate(logoutValidator), authController.logout);
+
+// Cierre de sesion en todos los dispositivos (requiere sesion activa)
+router.post('/logout-all', authenticate, authController.logoutAll);
+
+// Datos del usuario autenticado
+router.get('/me', authenticate, authController.me);
+
+// Recuperacion de contraseña
+router.post('/forgot-password', authRateLimiter, validate(forgotPasswordValidator), authController.forgotPassword);
+router.post('/reset-password', authRateLimiter, validate(resetPasswordValidator), authController.resetPassword);
 
 export default router;
