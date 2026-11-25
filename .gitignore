@@ -42,3 +42,7 @@ Thumbs.db
 # Trazas temporales
 tmp/
 temp/
+
+# Empaquetados locales y herramientas del editor (no forman parte del codigo)
+*.zip
+.trae-html-share-packages/
