@@ -17,6 +17,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // Sin sourcemaps en produccion: reduce el peso del despliegue y no expone el codigo fuente.
+    sourcemap: false,
   },
 });
