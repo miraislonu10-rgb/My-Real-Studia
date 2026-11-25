@@ -1,0 +1,18 @@
+# MY REAL STUDIA - frontend React sobre Apache
+# ---------------------------------------------------------------------------
+# React Router gestiona la navegacion en el cliente. Si el usuario recarga la
+# pagina en una ruta como /materias/5, Apache no encuentra ese archivo y debe
+# devolver index.html para que el router la resuelva.
+# Sin este archivo, cualquier recarga en una ruta interna devuelve 404.
+# ---------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Los archivos y carpetas reales (assets, imagenes, favicon) se sirven tal cual.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Cualquier otra ruta la resuelve el frontend.
+  RewriteRule ^ index.html [L]
+</IfModule>

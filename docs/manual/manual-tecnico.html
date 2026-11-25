@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Manual tecnico | MY REAL STUDIA</title>
+    <style>
+      :root {
+        --ink: #18243a;
+        --muted: #61708a;
+        --blue: #315b9b;
+        --violet: #7356d8;
+        --pale: #f3f5fb;
+        --line: #dce2ee;
+        --green: #23845a;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #e9edf5;
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 9.4pt;
+        line-height: 1.42;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .page {
+        position: relative;
+        width: 210mm;
+        height: 297mm;
+        margin: 10mm auto;
+        padding: 15mm 16mm 17mm;
+        overflow: hidden;
+        background: #fff;
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+
+      .page::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 4mm;
+        background: linear-gradient(90deg, var(--violet), #8e80e9, #8eb8ed);
+        content: "";
+      }
+
+      .page-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8mm;
+        color: var(--muted);
+        font-size: 8pt;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .brand {
+        color: var(--violet);
+        font-weight: 800;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 3mm;
+        font-size: 26pt;
+        line-height: 1.12;
+      }
+
+      h2 {
+        margin-bottom: 2.5mm;
+        color: var(--blue);
+        font-size: 16pt;
+        line-height: 1.2;
+      }
+
+      h3 {
+        margin-bottom: 1.5mm;
+        color: var(--ink);
+        font-size: 10.2pt;
+      }
+
+      p {
+        margin-bottom: 3mm;
+      }
+
+      ul,
+      ol {
+        margin: 1.5mm 0 3mm;
+        padding-left: 5mm;
+      }
+
+      li {
+        margin: 0 0 1.2mm;
+      }
+
+      code {
+        padding: 0.3mm 1mm;
+        border-radius: 1mm;
+        background: #eff2f8;
+        color: #3c4781;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 8.2pt;
+      }
+
+      pre {
+        margin: 2mm 0 3mm;
+        padding: 3mm 4mm;
+        border-radius: 2mm;
+        background: #17243b;
+        color: #f3f6fc;
+        font-family: Consolas, "Courier New", monospace;
+        font-size: 8.1pt;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      table {
+        width: 100%;
+        margin: 2mm 0 4mm;
+        border-collapse: collapse;
+        font-size: 8.5pt;
+      }
+
+      th,
+      td {
+        padding: 2mm 2.3mm;
+        border: 0.3mm solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #eaf0fa;
+        color: #24477e;
+        font-weight: 700;
+      }
+
+      .footer {
+        position: absolute;
+        right: 16mm;
+        bottom: 8mm;
+        left: 16mm;
+        display: flex;
+        justify-content: space-between;
+        padding-top: 2mm;
+        border-top: 0.3mm solid var(--line);
+        color: #7b879b;
+        font-size: 7.5pt;
+      }
+
+      .lead {
+        max-width: 160mm;
+        color: var(--muted);
+        font-size: 11pt;
+      }
+
+      .callout {
+        margin: 3mm 0;
+        padding: 3mm 4mm;
+        border-left: 1.2mm solid var(--violet);
+        border-radius: 0 2mm 2mm 0;
+        background: #f4f2ff;
+      }
+
+      .callout.green {
+        border-left-color: var(--green);
+        background: #eef8f3;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3mm;
+        margin: 2mm 0 4mm;
+      }
+
+      .card {
+        padding: 3mm 3.5mm;
+        border: 0.3mm solid var(--line);
+        border-radius: 2mm;
+        background: #fbfcff;
+      }
+
+      .diagram {
+        display: grid;
+        grid-template-columns: 1fr 8mm 1fr 8mm 1fr;
+        align-items: center;
+        margin: 5mm 0;
+      }
+
+      .diagram-box {
+        min-height: 25mm;
+        padding: 4mm 2mm;
+        border: 0.5mm solid #d8def0;
+        border-radius: 3mm;
+        background: var(--pale);
+        text-align: center;
+      }
+
+      .diagram-box strong {
+        display: block;
+        margin-bottom: 1.5mm;
+        color: var(--blue);
+        font-size: 10pt;
+      }
+
+      .arrow {
+        color: var(--violet);
+        font-size: 16pt;
+        font-weight: 800;
+        text-align: center;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 8pt;
+      }
+
+      .cover {
+        padding: 17mm 16mm;
+        background:
+          radial-gradient(circle at 88% 12%, rgba(147, 128, 234, 0.22), transparent 32%),
+          linear-gradient(145deg, #f8f7ff 0%, #fff 53%, #eff5ff 100%);
+      }
+
+      .cover::before {
+        height: 5mm;
+      }
+
+      .cover-mark {
+        display: inline-flex;
+        width: 16mm;
+        height: 16mm;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 11mm;
+        border-radius: 4mm;
+        background: var(--violet);
+        color: #fff;
+        font-size: 19pt;
+        font-weight: 800;
+        box-shadow: 0 3mm 8mm rgba(70, 54, 150, 0.18);
+      }
+
+      .cover-kicker {
+        margin-bottom: 3mm;
+        color: var(--violet);
+        font-size: 9pt;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .cover h1 {
+        max-width: 160mm;
+        color: #17243c;
+        font-size: 34pt;
+      }
+
+      .cover-subtitle {
+        max-width: 145mm;
+        margin-bottom: 8mm;
+        color: #5b6983;
+        font-size: 13pt;
+      }
+
+      .cover-image {
+        width: 100%;
+        height: 130mm;
+        overflow: hidden;
+        border: 1mm solid #fff;
+        border-radius: 4mm;
+        background: #fff;
+        box-shadow: 0 5mm 15mm rgba(34, 47, 79, 0.16);
+      }
+
+      .cover-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+      }
+
+      .cover-caption {
+        margin: 2mm 1mm 0;
+        color: var(--muted);
+        font-size: 7.5pt;
+        text-align: right;
+      }
+
+      .cover-meta {
+        position: absolute;
+        right: 16mm;
+        bottom: 16mm;
+        left: 16mm;
+        display: flex;
+        justify-content: space-between;
+        padding-top: 4mm;
+        border-top: 0.4mm solid #dce2ee;
+        color: #66738b;
+        font-size: 8.5pt;
+      }
+
+      .pill {
+        display: inline-block;
+        margin: 0 1mm 1mm 0;
+        padding: 1mm 2mm;
+        border-radius: 8mm;
+        background: #edf0fb;
+        color: #43538b;
+        font-size: 7.7pt;
+        font-weight: 700;
+      }
+
+      @media screen {
+        body {
+          padding: 1px 0;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        .page {
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="page cover">
+      <div class="cover-mark">S</div>
+      <div class="cover-kicker">Manual técnico · edición 2026</div>
+      <h1>MY REAL STUDIA</h1>
+      <p class="cover-subtitle">
+        Arquitectura, módulos, API, seguridad y guía de operación de la plataforma académica.
+      </p>
+      <div class="cover-image">
+        <img src="portada-home.png" alt="Página de inicio de MY REAL STUDIA" />
+      </div>
+      <p class="cover-caption">Captura de la página de inicio del proyecto</p>
+      <div class="cover-meta">
+        <span>React · Node.js · Express · MySQL</span>
+        <span>Documento técnico para desarrollo y presentación</span>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="page-head"><span class="brand">MY REAL STUDIA</span><span>01 · Visión general</span></div>
+      <h2>Propósito y alcance</h2>
+      <p class="lead">
+        Plataforma educativa para organizar materias, planificar sesiones, practicar, registrar
+        errores y analizar el progreso a partir de información real del estudiante.
+      </p>
+      <div class="grid">
+        <div class="card"><h3>Estudiante</h3><p>Gestiona materias y tareas, estudia con Smart Focus, repasa tarjetas y consulta su progreso.</p></div>
+        <div class="card"><h3>Tutor / administrador</h3><p>El tutor consulta el avance académico; el administrador también gestiona cuentas y recursos.</p></div>
+      </div>
+      <h2>Arquitectura por capas</h2>
+      <div class="diagram">
+        <div class="diagram-box"><strong>Frontend</strong>React + Vite<br /><span class="small">localhost:5173</span></div>
+        <div class="arrow">↔</div>
+        <div class="diagram-box"><strong>Backend</strong>Node.js + Express<br /><span class="small">localhost:4000/api</span></div>
+        <div class="arrow">↔</div>
+        <div class="diagram-box"><strong>Datos</strong>MySQL / MariaDB<br /><span class="small">XAMPP · puerto 3306</span></div>
+      </div>
+      <div class="callout">
+        <strong>Separación de responsabilidades:</strong> React presenta la experiencia; Express
+        valida y coordina cada operación; los modelos consultan MySQL con sentencias preparadas.
+        El módulo opcional <code>php-practice</code> enseña PHP y PDO por separado.
+      </div>
+      <h2>Stack principal</h2>
+      <p>
+        <span class="pill">React 19</span><span class="pill">Vite 8</span><span class="pill">React Router</span>
+        <span class="pill">Axios</span><span class="pill">Node.js 20+</span><span class="pill">Express 5</span>
+        <span class="pill">mysql2</span><span class="pill">MySQL / MariaDB</span><span class="pill">PHP + PDO</span>
+      </p>
+      <p class="small">
+        XAMPP aporta MySQL y Apache; el frontend y el backend se inician por separado y no los sirve Apache.
+      </p>
+      <div class="footer"><span>Manual técnico</span><span>2 / 7</span></div>
+    </section>
+
+    <section class="page">
+      <div class="page-head"><span class="brand">MY REAL STUDIA</span><span>02 · Frontend</span></div>
+      <h2>Cliente web con React</h2>
+      <p>
+        La aplicación es una SPA (Single Page Application): React cambia de vista sin recargar
+        toda la página. React Router gestiona rutas públicas, privadas y protegidas por rol.
+        Las páginas se importan bajo demanda con <code>lazy</code> y <code>Suspense</code>.
+      </p>
+      <h3>Organización del código</h3>
+      <table>
+        <thead><tr><th>Parte</th><th>Responsabilidad</th></tr></thead>
+        <tbody>
+          <tr><td><code>pages/</code></td><td>Pantallas por funcionalidad: Panel, Materias, Study Rescue, Memory Lab, etc.</td></tr>
+          <tr><td><code>components/</code></td><td>Componentes reutilizables organizados con Atomic Design.</td></tr>
+          <tr><td><code>context/</code></td><td>Estado compartido de sesión y roles.</td></tr>
+          <tr><td><code>services/</code></td><td>Solicitudes Axios a la API REST, separadas por dominio.</td></tr>
+          <tr><td><code>styles/</code></td><td>Tokens visuales, componentes y comportamiento responsive.</td></tr>
+        </tbody>
+      </table>
+      <h3>Rutas representativas</h3>
+      <div class="grid">
+        <div class="card"><strong>Acceso</strong><br /><code>/iniciar-sesion</code><br /><code>/registro</code></div>
+        <div class="card"><strong>Estudio</strong><br /><code>/materias</code><br /><code>/cronometro</code><br /><code>/planificador</code></div>
+        <div class="card"><strong>Aprendizaje</strong><br /><code>/memory-lab</code><br /><code>/error-dna</code><br /><code>/knowledge-map</code></div>
+        <div class="card"><strong>IA y progreso</strong><br /><code>/study-rescue</code><br /><code>/note-to-quiz</code><br /><code>/passport</code></div>
+      </div>
+      <h3>Comunicación con el servidor</h3>
+      <p>
+        El cliente centraliza URL base, cookies de sesión, renovación de acceso y errores HTTP
+        en <code>services/api.js</code>. Las pantallas llaman funciones de servicios, no construyen
+        consultas SQL ni dependen directamente de Express.
+      </p>
+      <div class="callout green">
+        <strong>Rendimiento:</strong> las pantallas y sus dependencias se descargan al abrir cada
+        ruta. El archivo de entrada del build quedó en 292 KB sin comprimir (94 KB gzip).
+      </div>
+      <div class="footer"><span>Frontend · React + Vite</span><span>3 / 7</span></div>
+    </section>
+
+    <section class="page">
+      <div class="page-head"><span class="brand">MY REAL STUDIA</span><span>03 · Backend y API</span></div>
+      <h2>API REST con Node.js y Express</h2>
+      <p>
+        Node.js ejecuta JavaScript en el servidor; Express organiza rutas y middlewares. El flujo
+        de una petición sigue capas para mantener responsabilidades claras:
+      </p>
+      <div class="diagram">
+        <div class="diagram-box"><strong>Ruta</strong>URL + método<br /><span class="small">autenticación / validación</span></div>
+        <div class="arrow">→</div>
+        <div class="diagram-box"><strong>Controlador</strong>HTTP<br /><span class="small">orquesta la acción</span></div>
+        <div class="arrow">→</div>
+        <div class="diagram-box"><strong>Modelo / servicio</strong>SQL o lógica<br /><span class="small">resultado JSON</span></div>
+      </div>
+      <h3>Endpoints de ejemplo</h3>
+      <table>
+        <thead><tr><th>Método y ruta</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td><code>POST /api/auth/register</code></td><td>Registrar una cuenta pública de estudiante.</td></tr>
+          <tr><td><code>GET /api/subjects</code>, <code>POST /api/subjects</code></td><td>Listar y crear materias propias.</td></tr>
+          <tr><td><code>POST /api/study-rescue/plan</code></td><td>Previsualizar el plan, sin guardar tareas.</td></tr>
+          <tr><td><code>POST /api/study-rescue/apply</code></td><td>Crear las tareas del plan en Smart Planner.</td></tr>
+          <tr><td><code>POST /api/ai/companion</code></td><td>Consultar el asistente académico.</td></tr>
+          <tr><td><code>POST /api/ai/note-to-quiz</code></td><td>Convertir apuntes en ejercicios.</td></tr>
+        </tbody>
+      </table>
+      <h3>Formato y reglas</h3>
+      <pre>{ "success": true, "error": null, "message": "…", "data": {} }</pre>
+      <ul>
+        <li>Las rutas sensibles requieren sesión y validan parámetros/cuerpo antes del controlador.</li>
+        <li>El middleware de errores unifica respuestas; los detalles internos no se exponen en producción.</li>
+        <li>Las consultas usan el pool de <code>mysql2</code> y parámetros, no concatenación de datos.</li>
+        <li>Los roles tutor y administrador habilitan rutas específicas; la docencia es de solo lectura.</li>
+      </ul>
+      <div class="footer"><span>API propia · HTTP + JSON</span><span>4 / 7</span></div>
+    </section>
+
+    <section class="page">
+      <div class="page-head"><span class="brand">MY REAL STUDIA</span><span>04 · Datos y seguridad</span></div>
+      <h2>Persistencia en MySQL</h2>
+      <p>
+        La base inicial <code>studia_db</code> contiene 18 tablas. Las migraciones idempotentes
+        completan el esquema según los módulos instalados, por ejemplo el historial de repasos y
+        las entradas del Academic Passport.
+      </p>
+      <table>
+        <thead><tr><th>Grupo</th><th>Tablas / información</th></tr></thead>
+        <tbody>
+          <tr><td>Identidad</td><td><code>users</code>, <code>student_profiles</code>, <code>refresh_tokens</code>, tokens de recuperación.</td></tr>
+          <tr><td>Estudio</td><td><code>subjects</code>, <code>topics</code>, <code>study_sessions</code>, <code>tasks</code>.</td></tr>
+          <tr><td>Práctica</td><td><code>exercises</code>, intentos, <code>errors</code>, tarjetas y sus repasos.</td></tr>
+          <tr><td>Analítica</td><td>Preferencias, planes, recomendaciones, reportes, logros y pasaporte académico.</td></tr>
+        </tbody>
+      </table>
+      <h2>Controles de seguridad</h2>
+      <div class="grid">
+        <div class="card"><h3>Contraseñas</h3><p>Hash bcrypt; nunca se almacenan en texto plano.</p></div>
+        <div class="card"><h3>Sesión</h3><p>JWT de acceso y refresh token en cookie httpOnly con rotación.</p></div>
+        <div class="card"><h3>Validación</h3><p>Reglas con express-validator antes de procesar peticiones.</p></div>
+        <div class="card"><h3>Anti-IDOR</h3><p>Se verifica que la fila pertenezca al usuario autenticado.</p></div>
+      </div>
+      <ul>
+        <li>El registro público asigna rol estudiante; los permisos superiores se conceden por vías controladas.</li>
+        <li>Las cuentas pueden suspenderse o borrarse lógicamente para preservar el historial académico.</li>
+        <li>Helmet, CORS restringido, rate limiting y manejo centralizado refuerzan la API.</li>
+        <li>Los archivos <code>.env</code> se excluyen de Git. Nunca se incluyen claves en el código ni en este manual.</li>
+      </ul>
+      <div class="callout">
+        <strong>Privacidad de analítica:</strong> las métricas académicas se derivan de sesiones,
+        ejercicios, errores y repasos persistidos; no se deben presentar cifras inventadas.
+      </div>
+      <div class="footer"><span>Persistencia y protección</span><span>5 / 7</span></div>
+    </section>
+
+    <section class="page">
+      <div class="page-head"><span class="brand">MY REAL STUDIA</span><span>05 · Study Rescue e IA</span></div>
+      <h2>Plan de rescate pre-examen</h2>
+      <ol>
+        <li>El frontend envía fecha del examen, materia y disponibilidad diaria.</li>
+        <li>El backend autentica, valida y verifica la propiedad de la materia.</li>
+        <li>El modelo consulta dominio por tema, tarjetas pendientes y errores recurrentes.</li>
+        <li>El cálculo local determina bloques, fechas, prioridades y duración.</li>
+        <li>El servicio de IA añade diagnóstico y estrategia por bloque; no reemplaza el cálculo ni la fuente de datos.</li>
+        <li>Al aplicar el plan, el controlador persiste las tareas reales en Smart Planner.</li>
+      </ol>
+      <h3>Integraciones externas de IA</h3>
+      <table>
+        <thead><tr><th>Proveedor</th><th>Uso</th><th>Configuración</th></tr></thead>
+        <tbody>
+          <tr><td>Google Gemini</td><td>Generación estructurada mediante <code>generateContent</code>, con modelos alternativos.</td><td><code>GEMINI_API_KEY</code>, nombre de modelo y timeout.</td></tr>
+          <tr><td>OpenAI compatible</td><td>Proveedor alternativo de chat completions si se configura.</td><td><code>OPENAI_API_KEY</code>, <code>OPENAI_BASE_URL</code>, modelo.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout green">
+        <strong>Respaldo:</strong> sin clave válida, ante un error del proveedor o un JSON
+        incompleto, STUDIA usa estrategias locales deterministas. La respuesta informa si el
+        contenido vino de IA o del motor local mediante metadata de procedencia.
+      </div>
+      <h3>Estado de configuración</h3>
+      <p>
+        La integración está implementada, pero en el entorno revisado no se confirmó una clave
+        Gemini válida. Para una demostración con IA real debe configurarse <code>GEMINI_API_KEY</code>
+        en <code>backend/.env</code> y reiniciar el backend. No se debe compartir la clave ni guardarla
+        en el repositorio.
+      </p>
+      <h3>Pruebas de regresión</h3>
+      <p>
+        Hay pruebas de respuesta estructurada simulada, JSON inválido, ausencia de credenciales,
+        estrategias faltantes y permisos de propiedad. Estas pruebas no consumen cuota de IA ni
+        requieren MySQL.
+      </p>
+      <div class="footer"><span>IA asistiva, datos verificables</span><span>6 / 7</span></div>
+    </section>
+
+    <section class="page">
+      <div class="page-head"><span class="brand">MY REAL STUDIA</span><span>06 · Operación</span></div>
+      <h2>Instalación local</h2>
+      <ol>
+        <li>Instalar Node.js 20+ y XAMPP; iniciar MySQL y cargar <code>backend/database/studia_database.sql</code> con phpMyAdmin.</li>
+        <li>Crear entornos desde ejemplos: <code>Copy-Item backend\.env.example backend\.env</code> y lo mismo para frontend.</li>
+        <li>Instalar dependencias con <code>npm.cmd run install:all</code>.</li>
+        <li>Iniciar ambos servidores desde la raíz con <code>npm.cmd run dev</code>.</li>
+        <li>Abrir <code>http://localhost:5173</code>; la API responde en <code>http://localhost:4000/api</code>.</li>
+      </ol>
+      <h3>Comprobaciones</h3>
+      <pre>npm.cmd test
+npm.cmd run build:frontend</pre>
+      <p>
+        El test runner de Node y el workflow de GitHub Actions ejecutan pruebas y compilación
+        en cada push o pull request. El build reciente se completó y pasaron 9 pruebas unitarias.
+      </p>
+      <h3>Despliegue</h3>
+      <p>
+        El repositorio incluye configuración base para Vercel (frontend) y Render (backend).
+        Para publicar faltan servicios y valores propios: base MySQL alojada, variables de entorno
+        y el dominio real del backend en el proxy de Vercel.
+      </p>
+      <h3>Glosario para la presentación</h3>
+      <table>
+        <tbody>
+          <tr><th>SPA</th><td>Aplicación web que cambia de vista sin recargar todo el documento.</td></tr>
+          <tr><th>API REST</th><td>Contrato HTTP que permite al frontend solicitar operaciones al backend.</td></tr>
+          <tr><th>Middleware</th><td>Función de Express que valida, autentica o transforma una petición.</td></tr>
+          <tr><th>Anti-IDOR</th><td>Control que impide acceder a registros de otro usuario manipulando un identificador.</td></tr>
+          <tr><th>Procedencia</th><td>Metadata que diferencia registros reales de sugerencias generadas por IA.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <strong>Demostración sugerida:</strong> inicia sesión, crea una materia, genera un plan
+        Study Rescue y explica qué procede de MySQL, qué propone la IA y cómo se aplica como tarea.
+      </div>
+      <div class="footer"><span>MY REAL STUDIA · Manual técnico</span><span>7 / 7</span></div>
+    </section>
+  </body>
+</html>

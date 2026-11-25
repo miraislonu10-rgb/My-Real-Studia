@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext.jsx';
-import { listUsers, updateUserStatus } from '../services/auth.js';
+import { listUsers, updateUser, updateUserStatus } from '../services/auth.js';
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -71,12 +71,26 @@ export default function AdminUsers() {
     }
   };
 
+  // Cambia el rol de una cuenta (por ejemplo, ascender a un alumno a tutor).
+  const handleRoleChange = async (uuid, role) => {
+    setMessage(null);
+    try {
+      await updateUser(uuid, { role });
+      setMessage({ type: 'ok', text: `Rol actualizado a "${ROLE_LABELS[role]}".` });
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      // Se recarga siempre para reflejar el valor real guardado en el servidor.
+      await load();
+    }
+  };
+
   return (
     <section className="page page--wide">
       <h2 className="page__title">Administracion de usuarios</h2>
       <p className="page__text">
-        Consulta las cuentas registradas y activa o suspende su acceso. Esta pantalla solo esta
-        disponible para administradores.
+        Consulta las cuentas registradas, activa o suspende su acceso y ajusta su rol (estudiante,
+        tutor o administrador). Esta pantalla solo esta disponible para administradores.
       </p>
 
       {message && (
@@ -161,6 +175,23 @@ export default function AdminUsers() {
                               Suspender
                             </button>
                           )}
+                          <label
+                            className="hint"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                          >
+                            Rol
+                            <select
+                              value={item.role}
+                              aria-label={`Rol de ${item.firstName} ${item.lastName}`}
+                              onChange={(event) => handleRoleChange(item.uuid, event.target.value)}
+                            >
+                              {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                                <option key={value} value={value}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                         </div>
                       )}
                     </td>
@@ -202,7 +233,7 @@ export default function AdminUsers() {
       )}
 
       <p className="hint">
-        <Link to="/panel">Volver al panel</Link>
+        <Link to="/docencia">Ir a Docencia</Link> · <Link to="/panel">Volver al panel</Link>
       </p>
     </section>
   );

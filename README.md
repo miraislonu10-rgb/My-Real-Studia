@@ -86,7 +86,8 @@ no se generan cifras inventadas.
 | Learning Profile | `/perfil-aprendizaje` | Cuestionario multidimensional de preferencias de aprendizaje que alimenta las recomendaciones de los demás módulos. |
 | Perfil | `/perfil` | Datos de la cuenta y del perfil académico (actualización y borrado lógico de la propia cuenta). |
 | Recursos educativos | `/recursos` | Catálogo global (`/api/resources`): los estudiantes consultan y abren los recursos **publicados**; el administrador los crea, edita, publica/oculta y elimina. |
-| Administración | `/admin/usuarios` | Gestión de cuentas: listado paginado, filtros por rol y estado, activar/suspender. |
+| Administración | `/admin/usuarios` | Gestión de cuentas: listado paginado, filtros por rol y estado, activar/suspender y **asignación de rol** (estudiante / tutor / administrador). |
+| Docencia | `/docencia`, `/docencia/:uuid` | Acompañamiento **de solo lectura** para administradores y tutores: resumen del grupo, alumnos con su progreso y los temas que están viendo, y ficha individual (analítica, materias con sus temas, informe semanal y últimas sesiones). |
 | PHP practice | módulo aparte | Demostración de PHP básico, superglobales y CRUD con PDO (su propia base de datos). Ver `php-practice/README.md`. |
 
 ---
@@ -386,6 +387,60 @@ esté apagado, y el frontend avisa si la API no está disponible.
 > **Accede siempre por `http://localhost:5173`** (no `127.0.0.1`) para evitar bloqueos de
 > CORS por parte del backend.
 
+### 7.3 Publicar en internet (Vercel + Render)
+
+El backend necesita Node y MySQL, así que no cabe en GitHub Pages (que solo sirve archivos
+estáticos). La combinación que funciona sin coste es **frontend en Vercel + backend en Render**.
+
+**Preparado en el repositorio:**
+
+- `frontend/vercel.json`: reescribe `/api/*` hacia el backend y manda el resto a `index.html`
+  (necesario para que las rutas de React Router, como `/panel`, no den 404 al recargar).
+- `render.yaml`: describe el servicio del backend para el "Blueprint" de Render.
+- La cookie de sesión se ajusta sola: `lax` en local y `none` (con `Secure`) en producción, así
+  el inicio de sesión funciona aunque el frontend y la API estén en dominios distintos.
+
+**Pasos:**
+
+1. **Base de datos MySQL alojada.** Crea una instancia (Railway, Aiven o filess.io), importa
+   `backend/database/studia_database.sql` desde su consola y anota host, puerto, usuario,
+   contraseña y nombre. Render no ofrece MySQL propio.
+2. **Backend en Render.** New → Blueprint, elige el repositorio y Render leerá `render.yaml`.
+   Rellena las variables que te pida: `CORS_ORIGIN` y `FRONTEND_URL` con la URL de Vercel
+   (la tendrás en el paso 3; puedes volver a editarlas), las `DB_*` y, si usas el asistente,
+   `GEMINI_API_KEY`. Los secretos JWT se generan solos. Comprueba que responde en
+   `https://TU-BACKEND.onrender.com/api/health`.
+3. **Frontend en Vercel.** Importa el repositorio, deja la carpeta raíz como `frontend`
+   (Vercel detecta Vite) y define la variable de entorno `VITE_API_URL` con el valor `/api`.
+   En `frontend/vercel.json`, sustituye `CAMBIAR-POR-TU-BACKEND.onrender.com` por tu dominio
+   real de Render.
+4. **Crear el primer administrador.** Entra en `https://TU-APP.vercel.app/configuracion-inicial`
+   y crea la cuenta; después añade `FRONTEND_URL` en Render con la URL final.
+5. **Dominio propio (opcional).** Ni Vercel ni Render regalan dominios: ambos dan un subdominio
+   gratuito. Un dominio propio se compra aparte y se conecta con un registro CNAME desde el
+   panel del proveedor.
+
+> **Alternativa sin proxy:** si prefieres que el navegador llame directamente a Render, quita la
+> regla `/api/:path*` de `frontend/vercel.json`, pon `VITE_API_URL` con la URL completa
+> (`https://TU-BACKEND.onrender.com/api`) y añade esa URL a `CORS_ORIGIN`. Con dos dominios
+> distintos, Safari y los navegadores que bloquean cookies de terceros pueden cerrar la sesión
+> al recargar; el proxy evita justamente eso.
+
+### 7.4 Pruebas y compilación
+
+Desde la raíz del repositorio:
+
+```powershell
+npm.cmd test
+npm.cmd run build:frontend
+```
+
+Las pruebas unitarias del backend usan el test runner integrado de Node.js y no necesitan
+MySQL ni credenciales. También hay un flujo de GitHub Actions que ejecuta las pruebas y
+compila el frontend en cada push y pull request. Para validar endpoints con la base de datos
+local, inicia XAMPP y los servidores; el script de humo está en
+`backend/scripts/testApi.js`.
+
 ---
 
 ## 8. Referencia de la API
@@ -513,6 +568,11 @@ aplica) identifica el campo con problema:
 | Método | Ruta | Descripción |
 | --- | --- | --- |
 | POST | `/ai/companion` | Consulta al asistente. Limitado a 20 peticiones/min por IP. |
+| POST | `/ai/note-to-quiz` | Genera ejercicios desde apuntes y los guarda en la materia elegida. |
+
+Study Rescue (`/api/study-rescue`) calcula fechas y carga con datos reales, y añade un
+diagnóstico y estrategias mediante IA cuando hay proveedor configurado; conserva un respaldo
+local transparente si no está disponible.
 
 Acciones soportadas por `action`: `explain_concept`, `generate_exercise`, `provide_hint`,
 `explain_wrong_answer`, `analyze_frequent_errors`, `recommend_theory`, `personalized_review`.
@@ -525,6 +585,16 @@ Acciones soportadas por `action`: `explain_concept`, `generate_exercise`, `provi
 | POST | `/setup/first-admin` | Público (una sola vez) | Crea la **primera** cuenta de administrador. Solo actúa si aún no existe ningún admin y aplica el límite reforzado de intentos. |
 | POST | `/demo/seed` | Autenticado (estudiante) | Carga contenido de ejemplo en una cuenta **vacía** (sin materias): materias, temas, tareas, errores y tarjetas. Si ya hay materias responde `409`, para no alterar contenido real. |
 
+### 8.12 Docencia (`/api/teacher`) — solo lectura
+
+Exclusivo para roles `admin` y `tutor` (`authenticate` + `requireTeacher`). **No expone ninguna ruta de escritura**: el módulo de docencia únicamente consulta datos.
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| GET | `/teacher/summary` | Resumen del grupo: alumnos totales/activos, actividad acumulada, materias destacadas, temas en curso y alumnos que requieren atención. |
+| GET | `/teacher/students?search&sort&page&limit` | Listado paginado de estudiantes con su progreso agregado (`sort` ∈ `name`, `studyTime`, `progress`, `accuracy`, `inactive`). |
+| GET | `/teacher/students/:uuid` | Ficha de un alumno: analítica, materias con sus temas, informe semanal y últimas sesiones (mismas cifras que ve el propio estudiante). |
+
 ---
 
 ## 9. Frontend
@@ -535,8 +605,9 @@ Acciones soportadas por `action`: `explain_concept`, `generate_exercise`, `provi
 | --- | --- | --- |
 | Públicas exclusivas (sin sesión) | `AuthLayout` | `/iniciar-sesion`, `/registro`, `/recuperar-password` |
 | Accesible con o sin sesión | `AuthLayout` | `/restablecer-password`, `/configuracion-inicial` |
-| Privadas (cualquier rol) | `AppShell` (menú lateral) | `/panel`, `/cronometro`, `/planificador`, `/diario-errores`, `/estadisticas`, `/memory-lab`, `/ai-companion`, `/perfil-aprendizaje`, `/materias`, `/materias/:id`, `/recursos`, `/perfil` (`/temas` redirige a `/materias`) |
+| Privadas (cualquier rol) | `AppShell` (menú lateral) | `/panel`, `/cronometro`, `/planificador`, `/diario-errores`, `/estadisticas`, `/memory-lab`, `/error-dna`, `/knowledge-map`, `/study-rescue`, `/note-to-quiz`, `/passport`, `/ai-companion`, `/perfil-aprendizaje`, `/materias`, `/materias/:id`, `/recursos`, `/perfil` (`/temas` redirige a `/materias`) |
 | Solo administrador | `AppShell` (menú lateral) | `/admin/usuarios` |
+| Docencia (`admin` y `tutor`) | `AppShell` (menú lateral) | `/docencia`, `/docencia/:uuid` |
 | Públicas | `Layout` (cabecera y pie) | `/`, `/acceso-denegado`, `*` |
 
 Las pantallas privadas se montan en el armazón con **menú lateral** (`AppShell` + `Sidebar`),
@@ -578,7 +649,8 @@ contexto de apilamiento inferior.
 | `flashcards.js` | `/flashcards/*` (Memory Lab). |
 | `analytics.js` | `/analytics/*`. |
 | `learningProfile.js` | `/learning-profile`. |
-| `ai.js` | `POST /ai/companion`. |
+| `ai.js` | `POST /ai/companion`, `POST /ai/note-to-quiz`. |
+| `errorDna.js`, `knowledgeMap.js`, `studyRescue.js`, `passport.js` | Endpoints de los módulos avanzados de aprendizaje. |
 
 ### 9.4 Sesión y roles
 
@@ -643,7 +715,7 @@ Consulta `php-practice/README.md` para requisitos, importación del SQL y public
 - Al restablecer la contraseña se revocan **todas** las sesiones.
 
 ### 12.3 Autorización y roles
-- Roles `student` y `admin`; el middleware `authenticate` recarga el usuario desde la base
+- Roles `student`, `tutor` y `admin`; el middleware `authenticate` recarga el usuario desde la base
   (una cuenta suspendida/eliminada pierde acceso al instante) y **no confía en el rol del token**.
 - `requireAdmin` protege las rutas administrativas (responden `403` aunque se conozca la URL).
 - El registro público solo crea estudiantes; el admin se crea con `npm run create:admin`.

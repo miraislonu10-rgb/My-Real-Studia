@@ -9,7 +9,7 @@ import rateLimit from 'express-rate-limit';
 import * as aiController from '../controllers/ai.controller.js';
 import { authenticate } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
-import { companionValidator } from '../validators/ai.validators.js';
+import { companionValidator, noteToQuizValidator } from '../validators/ai.validators.js';
 
 const router = Router();
 
@@ -30,5 +30,6 @@ const aiLimiter = rateLimit({
 });
 
 router.post('/companion', aiLimiter, validate(companionValidator), aiController.consultCompanion);
+router.post('/note-to-quiz', aiLimiter, validate(noteToQuizValidator), aiController.noteToQuiz);
 
 export default router;

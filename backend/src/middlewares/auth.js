@@ -85,6 +85,13 @@ export const requireAdmin = authorize('admin');
 export const requireStudent = authorize('student');
 
 /**
+ * Azucar sintactico: docentes.
+ * El panel de docencia es de solo lectura (ver rutas /api/teacher) y sirve
+ * tanto al administrador como al rol tutor para acompanar a los alumnos.
+ */
+export const requireTeacher = authorize('admin', 'tutor');
+
+/**
  * Autenticacion opcional: si hay token valido adjunta req.user; si no,
  * continua como invitado. Util en endpoints publicos personalizables.
  */
@@ -105,4 +112,4 @@ export const optionalAuth = async (req, res, next) => {
   return next();
 };
 
-export default { authenticate, authorize, requireAdmin, requireStudent, optionalAuth };
+export default { authenticate, authorize, requireAdmin, requireStudent, requireTeacher, optionalAuth };

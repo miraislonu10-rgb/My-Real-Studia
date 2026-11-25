@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# STUDIA - Despliegue del backend en Render (Blueprint)
+# ---------------------------------------------------------------------------
+# Render lee este archivo al crear un "Blueprint" desde el repositorio.
+# Los valores con "sync: false" los pide Render en el panel (y no se guardan
+# aqui): son credenciales de la base de datos y URLs del frontend.
+# Los secretos JWT se generan solos con "generateValue: true".
+#
+# La base de datos MySQL NO se crea aqui: Render no ofrece MySQL. Usa
+# Railway, Aiven o filess.io y pega sus datos en DB_HOST, DB_USER, etc.
+# ---------------------------------------------------------------------------
+
+services:
+  - type: web
+    name: studia-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Dominios autorizados a llamar a la API (el del frontend en Vercel)
+      - key: CORS_ORIGIN
+        sync: false
+      # URL del frontend: se usa para armar los enlaces de recuperacion
+      - key: FRONTEND_URL
+        sync: false
+      # El frontend entrega la cookie por el proxy del mismo dominio
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: TRUST_PROXY
+        value: 1
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      # Base de datos MySQL externa (Railway / Aiven / filess.io)
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      # STUDIA AI Companion (opcional: sin clave funciona el motor local)
+      - key: GEMINI_API_KEY
+        sync: false

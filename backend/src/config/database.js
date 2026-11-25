@@ -19,8 +19,8 @@
 import mysql from 'mysql2/promise';
 import { env } from './env.js';
 
-/** Numero de tablas del esquema actual (15 de dominio + 1 catalogo de recursos + 2 de seguridad). */
-export const EXPECTED_SCHEMA_TABLES = 18;
+/** Numero de tablas del esquema actual (16 de dominio + 1 catalogo de recursos + 2 de seguridad). */
+export const EXPECTED_SCHEMA_TABLES = 19;
 
 export const pool = mysql.createPool({
   host: env.db.host,

@@ -23,6 +23,11 @@ import learningProfileRoutes from './learningProfile.routes.js';
 import analyticsRoutes from './analytics.routes.js';
 import flashcardRoutes from './flashcard.routes.js';
 import aiRoutes from './ai.routes.js';
+import errorDnaRoutes from './errorDna.routes.js';
+import knowledgeMapRoutes from './knowledgeMap.routes.js';
+import studyRescueRoutes from './studyRescue.routes.js';
+import passportRoutes from './passport.routes.js';
+import teacherRoutes from './teacher.routes.js';
 import { getApiDocumentation } from '../controllers/docs.controller.js';
 
 const router = Router();
@@ -86,7 +91,19 @@ router.get('/', (req, res) => {
           overview: 'GET /api/analytics/overview?from&to',
           weeklyReport: 'GET /api/analytics/weekly-report?date',
         },
-        ai: 'POST /api/ai/companion',
+        ai: 'POST /api/ai/companion · POST /api/ai/note-to-quiz',
+        errorDna: 'GET /api/error-dna?from&to',
+        knowledgeMap: 'GET /api/knowledge-map',
+        studyRescue: 'POST /api/study-rescue/plan · POST /api/study-rescue/apply',
+        passport: {
+          overview: 'GET /api/passport',
+          entries: 'POST /api/passport/entries · PUT|DELETE /api/passport/entries/:id',
+        },
+        teacher: {
+          summary: 'GET /api/teacher/summary',
+          students: 'GET /api/teacher/students?search&sort&page&limit',
+          studentDetail: 'GET /api/teacher/students/:uuid',
+        },
         docs: 'GET /api/docs',
       },
     },
@@ -110,6 +127,11 @@ router.use('/learning-profile', learningProfileRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/flashcards', flashcardRoutes);
 router.use('/ai', aiRoutes);
+router.use('/error-dna', errorDnaRoutes);
+router.use('/knowledge-map', knowledgeMapRoutes);
+router.use('/study-rescue', studyRescueRoutes);
+router.use('/passport', passportRoutes);
+router.use('/teacher', teacherRoutes);
 router.get('/docs', getApiDocumentation);
 
 export default router;

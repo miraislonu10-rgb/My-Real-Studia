@@ -21,6 +21,10 @@ const app = express();
 // No revelar la tecnologia del servidor en las cabeceras HTTP
 app.disable('x-powered-by');
 
+// Detras de un proxy (Render, Railway, Vercel) la IP real llega en X-Forwarded-For.
+// Sin esto el limitador de peticiones contaria a todos los usuarios como uno solo.
+if (env.trustProxy > 0) app.set('trust proxy', env.trustProxy);
+
 // Cabeceras de seguridad HTTP
 app.use(helmet());
 

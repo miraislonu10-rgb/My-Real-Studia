@@ -93,20 +93,20 @@ const TRANSIENT_STATUSES = new Set([500, 502, 503, 504]);
  * agota su cuota (429/403) o no esta disponible (404), STUDIA prueba estos
  * antes de recurrir al motor pedagogico local.
  */
-const GEMINI_FALLBACK_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+const GEMINI_FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 
 /**
  * Solicita una respuesta a un modelo concreto de Gemini.
- * Reintenta una vez ante saturacion (5xx); ante cuota agotada, permisos o
- * modelo inexistente no insiste (pasa al siguiente modelo).
+ * Reintenta ante saturacion (5xx) y ante cortes de red puntuales (fetch failed);
+ * ante cuota agotada, permisos o modelo inexistente no insiste (pasa al siguiente modelo).
  */
 const requestGeminiModel = async (model, body) => {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.ai.geminiApiKey}`;
   let notice = null;
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
     if (attempt > 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, attempt * 700));
     }
 
     try {
@@ -122,14 +122,15 @@ const requestGeminiModel = async (model, body) => {
         notice = `El modelo ${model} no devolvió texto utilizable.`;
       } else {
         notice = describeGeminiError(response.status, await response.text());
-        // Cuota agotada o modelo no disponible: probar otro modelo, no este de nuevo.
+        // Cuota agotada, permisos o modelo inexistente: no insistir con este modelo.
         if (!TRANSIENT_STATUSES.has(response.status)) return { text: null, notice };
       }
     } catch (apiErr) {
       const aborted = apiErr.name === 'AbortError';
       notice = `No se pudo contactar con Gemini (${aborted ? 'tiempo de espera agotado' : apiErr.message}).`;
-      // Si el proveedor no responde, reintentar o cambiar de modelo alargaria la espera.
-      return { text: null, notice, aborted };
+      // Un tiempo de espera agotado no mejora reintentando: se pasa al siguiente modelo.
+      if (aborted) return { text: null, notice, aborted };
+      // Corte de red puntual: reintentar el mismo modelo antes de descartarlo.
     }
   }
 
@@ -411,4 +412,574 @@ He procesado tu consulta pedagógica: "${prompt}".
 - Utiliza la técnica de auto-explicación: intenta explicar la solución en voz alta con tus propias palabras.
 - Apóyate en el planificador **Smart Planner** para calendarizar tus repasos sin sobrecargar tu disponibilidad.`;
   }
+};
+
+/* ==========================================================================
+ * NOTE-TO-QUIZ
+ * --------------------------------------------------------------------------
+ * Convierte los APUNTES del estudiante en preguntas de estudio estructuradas.
+ * Usa el mismo proveedor de IA (Gemini/OpenAI) que el AI Companion y, cuando
+ * no hay credencial o el proveedor falla, un generador LOCAL determinista que
+ * extrae preguntas directamente de las frases de los apuntes (nunca inventa
+ * contenido ajeno al texto aportado).
+ * ========================================================================== */
+
+/** Tipos de ejercicio admitidos por el ENUM de la tabla `exercises`. */
+const QUIZ_TYPES = ['multiple_choice', 'open_answer', 'true_false'];
+const QUIZ_DIFFICULTIES = ['easy', 'medium', 'hard'];
+
+/** Extrae el primer objeto JSON valido del texto devuelto por el modelo. */
+const parseQuizJson = (raw) => {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();
+
+  const tryParse = (value) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
+
+  let data = tryParse(cleaned);
+  if (!data) {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end > start) data = tryParse(cleaned.slice(start, end + 1));
+  }
+
+  const list = Array.isArray(data) ? data : data?.questions;
+  return Array.isArray(list) ? list : null;
+};
+
+/** Normaliza y valida una pregunta generada por el modelo. */
+const normalizeQuestion = (item, fallbackDifficulty) => {
+  if (!item || typeof item !== 'object') return null;
+
+  const statement = String(item.statement || item.question || '').trim();
+  if (!statement) return null;
+
+  const exerciseType = QUIZ_TYPES.includes(item.exerciseType) ? item.exerciseType : 'open_answer';
+  const difficultyLevel = QUIZ_DIFFICULTIES.includes(item.difficultyLevel)
+    ? item.difficultyLevel
+    : fallbackDifficulty;
+
+  let options = null;
+  if (exerciseType === 'multiple_choice') {
+    const rawOptions = Array.isArray(item.options) ? item.options : [];
+    options = rawOptions
+      .map((option) => (typeof option === 'string' ? option : option?.text || option?.label || ''))
+      .map((text) => String(text).trim())
+      .filter(Boolean)
+      .slice(0, 6);
+    if (options.length < 2) return null;
+  } else if (exerciseType === 'true_false') {
+    options = ['Verdadero', 'Falso'];
+  }
+
+  return {
+    title: String(item.title || 'Pregunta generada').trim().slice(0, 200),
+    statement,
+    exerciseType,
+    difficultyLevel,
+    options,
+    correctAnswer: item.correctAnswer ? String(item.correctAnswer).trim() : null,
+    solution: item.solution ? String(item.solution).trim() : null,
+  };
+};
+
+/**
+ * Generador local determinista: construye preguntas a partir de las frases de
+ * los apuntes. Detecta definiciones ("Termino: definicion"), enunciados
+ * completables (oculta la palabra mas significativa) y, en su defecto,
+ * afirmaciones para verdadero/falso.
+ */
+const generateLocalQuiz = (notes, { count, difficultyLevel }) => {
+  const lines = String(notes || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-*•\d.)\s]+/, '').trim())
+    .filter((line) => line.length >= 15);
+
+  const questions = [];
+
+  for (const line of lines) {
+    if (questions.length >= count) break;
+
+    const definition = line.match(/^(.{3,80}?)\s*(?::|=|\bes\b)\s+(.{8,})$/i);
+    if (definition) {
+      const term = definition[1].trim();
+      questions.push({
+        title: `Define: ${term.slice(0, 60)}`,
+        statement: `Explica con tus palabras qué es o qué significa: "${term}".`,
+        exerciseType: 'open_answer',
+        difficultyLevel,
+        options: null,
+        correctAnswer: definition[2].trim(),
+        solution: `Según tus apuntes: ${line}`,
+      });
+      continue;
+    }
+
+    const words = line.split(/\s+/);
+    const lettersOnly = (word) => word.replace(/[^\p{L}\p{N}]/gu, '');
+    let longestIndex = -1;
+    words.forEach((word, index) => {
+      const clean = lettersOnly(word);
+      if (clean.length >= 6 && (longestIndex === -1 || clean.length > lettersOnly(words[longestIndex]).length)) {
+        longestIndex = index;
+      }
+    });
+
+    if (longestIndex !== -1) {
+      const answer = lettersOnly(words[longestIndex]);
+      const blanked = words.map((word, index) => (index === longestIndex ? '______' : word)).join(' ');
+      questions.push({
+        title: 'Completa el enunciado',
+        statement: `Completa según tus apuntes: ${blanked}`,
+        exerciseType: 'open_answer',
+        difficultyLevel,
+        options: null,
+        correctAnswer: answer,
+        solution: line,
+      });
+      continue;
+    }
+
+    questions.push({
+      title: 'Verdadero o falso',
+      statement: `Verdadero o falso (según tus apuntes): ${line}`,
+      exerciseType: 'true_false',
+      difficultyLevel,
+      options: ['Verdadero', 'Falso'],
+      correctAnswer: 'Verdadero',
+      solution: 'Afirmación tomada directamente de tus apuntes.',
+    });
+  }
+
+  return questions.slice(0, count);
+};
+
+/**
+ * Note-to-Quiz: transforma apuntes en preguntas estructuradas listas para
+ * guardarse como ejercicios. Devuelve la misma metadata de procedencia que el
+ * asistente para distinguir lo generado por IA de lo derivado localmente.
+ *
+ * @param {number} userId
+ * @param {{notes:string, subjectName?:string, topicName?:string,
+ *          questionCount?:number, difficultyLevel?:'easy'|'medium'|'hard'}} params
+ */
+export const generateQuizFromNotes = async (
+  userId,
+  { notes, subjectName, topicName, questionCount = 5, difficultyLevel = 'medium' }
+) => {
+  const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
+  const difficulty = QUIZ_DIFFICULTIES.includes(difficultyLevel) ? difficultyLevel : 'medium';
+  const provider = env.ai.geminiApiKey ? 'gemini' : env.ai.openaiApiKey ? 'openai' : null;
+
+  const systemPrompt = `Eres STUDIA Quiz Generator, un generador de cuestionarios academicos de la plataforma STUDIA.
+Convierte los apuntes del estudiante en preguntas de estudio.
+Devuelve EXCLUSIVAMENTE un objeto JSON valido con esta forma exacta:
+{"questions":[{"title":"...","statement":"...","exerciseType":"multiple_choice|open_answer|true_false","difficultyLevel":"easy|medium|hard","options":["..."],"correctAnswer":"...","solution":"..."}]}
+Reglas: "options" solo se rellena en multiple_choice (de 2 a 5 alternativas) y en true_false (["Verdadero","Falso"]); no inventes contenido que no este respaldado por los apuntes.`;
+
+  const userInstruction = `Genera ${count} preguntas de dificultad ${difficulty} a partir de estos apuntes.
+Materia: ${subjectName || 'General'}.
+Tema: ${topicName || 'General'}.
+
+APUNTES:
+"""
+${String(notes).slice(0, 8000)}
+"""`;
+
+  let raw = null;
+  let providerNotice = null;
+  let modelUsed = null;
+
+  if (provider === 'gemini') {
+    const candidateModels = [env.ai.geminiModel, ...GEMINI_FALLBACK_MODELS].filter(
+      (model, index, all) => model && all.indexOf(model) === index
+    );
+    modelUsed = env.ai.geminiModel;
+
+    const geminiBody = {
+      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${userInstruction}` }] }],
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 2000,
+        responseMimeType: 'application/json',
+      },
+    };
+
+    for (const model of candidateModels) {
+      const result = await requestGeminiModel(model, geminiBody);
+      if (result.text) {
+        raw = result.text;
+        modelUsed = model;
+        break;
+      }
+      providerNotice = result.notice;
+      console.warn('[ai:quiz]', `${model}: ${result.notice}`);
+      if (result.aborted) break;
+    }
+  } else if (provider === 'openai') {
+    modelUsed = env.ai.openaiModel;
+    try {
+      const response = await requestWithTimeout(`${env.ai.openaiBaseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.ai.openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: env.ai.openaiModel,
+          temperature: 0.5,
+          max_tokens: 2000,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userInstruction },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        raw = extractOpenAiText(await response.json());
+      } else {
+        providerNotice = `El proveedor de IA respondió con estado ${response.status}.`;
+        console.warn('[ai:quiz]', providerNotice);
+      }
+    } catch (apiErr) {
+      providerNotice = `No se pudo contactar con el proveedor de IA (${
+        apiErr.name === 'AbortError' ? 'tiempo de espera agotado' : apiErr.message
+      }).`;
+      console.warn('[ai:quiz]', providerNotice);
+    }
+  }
+
+  const parsed = parseQuizJson(raw);
+  const normalized = (parsed || []).map((item) => normalizeQuestion(item, difficulty)).filter(Boolean);
+
+  if (normalized.length > 0) {
+    return {
+      isAiConfigured: true,
+      source: provider === 'gemini' ? 'gemini_ai' : 'openai_ai',
+      provider,
+      model: modelUsed,
+      aiGenerated: true,
+      questionCount: normalized.length,
+      questions: normalized,
+      disclaimer: `Cuestionario generado por el modelo ${modelUsed} de STUDIA a partir de tus apuntes.`,
+      dataProvenance: {
+        studentRecordsUsed: ['apuntes del estudiante'],
+        inputCharacters: String(notes).length,
+        aiGenerated: true,
+        note: 'Las preguntas son una sugerencia generada por IA a partir del texto que escribiste; revísalas antes de estudiarlas.',
+      },
+    };
+  }
+
+  const localQuestions = generateLocalQuiz(notes, { count, difficultyLevel: difficulty });
+
+  return {
+    isAiConfigured: !!provider,
+    source: 'local_generator',
+    provider: provider || 'local',
+    model: provider ? modelUsed : null,
+    aiGenerated: false,
+    questionCount: localQuestions.length,
+    questions: localQuestions,
+    providerNotice,
+    disclaimer: provider
+      ? 'El proveedor de IA no devolvió un cuestionario válido; se generaron preguntas con el motor local de STUDIA.'
+      : 'Modo generador local de STUDIA (sin credenciales de IA configuradas). Define GEMINI_API_KEY u OPENAI_API_KEY en backend/.env para activar la generación con IA.',
+    dataProvenance: {
+      studentRecordsUsed: ['apuntes del estudiante'],
+      inputCharacters: String(notes).length,
+      aiGenerated: false,
+      note: 'Las preguntas fueron construidas por el motor local de STUDIA extrayendo frases de tus apuntes; no provienen de un modelo de IA externo.',
+    },
+  };
+};
+
+/* ==========================================================================
+ * STUDY RESCUE
+ * --------------------------------------------------------------------------
+ * Comenta el plan de rescate pre-examen YA CALCULADO sobre datos reales
+ * (dominio por tema, errores recurrentes, tarjetas pendientes): redacta un
+ * diagnostico global y una estrategia pedagogica por bloque. Reutiliza el
+ * mismo proveedor (Gemini/OpenAI) que el AI Companion y, cuando no hay
+ * credencial o el proveedor falla, un generador LOCAL determinista que
+ * compone los comentarios desde los mismos datos reales. Nunca inventa
+ * materias, temas ni cifras que no esten en el plan.
+ * ========================================================================== */
+
+/** Extrae el primer objeto JSON valido del texto devuelto por el modelo. */
+const parseRescueJson = (raw) => {
+  if (!raw) return null;
+  const cleaned = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();
+
+  const tryParse = (value) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
+
+  let data = tryParse(cleaned);
+  if (!data) {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start !== -1 && end > start) data = tryParse(cleaned.slice(start, end + 1));
+  }
+
+  return data && typeof data === 'object' && !Array.isArray(data) ? data : null;
+};
+
+/** Normaliza la respuesta del modelo: diagnostico + estrategias por indice. */
+const normalizeRescue = (data, itemCount) => {
+  if (!data) return null;
+
+  const diagnostic =
+    typeof data.diagnostic === 'string' ? data.diagnostic.trim().slice(0, 1200) : '';
+  const blocks = (Array.isArray(data.blocks) ? data.blocks : [])
+    .map((block) => ({
+      index: Number(block?.index),
+      focus: typeof block?.focus === 'string' ? block.focus.trim().slice(0, 60) : '',
+      strategy: typeof block?.strategy === 'string' ? block.strategy.trim().slice(0, 1000) : '',
+    }))
+    .filter(
+      (block) =>
+        Number.isInteger(block.index) && block.index >= 0 && block.index < itemCount && block.strategy
+    );
+
+  if (!diagnostic && blocks.length === 0) return null;
+  return { diagnostic, blocks };
+};
+
+/** Estrategia local determinista para un bloque, segun su motivo real. */
+const localBlockStrategy = (item) => {
+  if (item.masteryScore !== null && item.masteryScore < 35) {
+    return 'Reconstruye la base: repasa la teoria esencial del tema, resuelve 3 ejercicios guiados y explica el procedimiento en voz alta al terminar.';
+  }
+  if (item.masteryScore !== null && item.masteryScore < 55) {
+    return 'Refuerza con practica deliberada: resuelve de 5 a 8 ejercicios de dificultad media y anota cada fallo para corregirlo al final del bloque.';
+  }
+  if (item.masteryScore !== null) {
+    return 'Consolida con practica variada y preguntas mixtas, centrandote en la velocidad y la precision en condiciones de examen.';
+  }
+  if (/tarjeta/i.test(item.title)) {
+    return 'Repaso espaciado: repasa las tarjetas pendientes en Memory Lab y gradua con honestidad tu nivel de recuerdo.';
+  }
+  if (/error/i.test(item.title)) {
+    return 'Analisis de errores: revisa cada patron en Error DNA, explica por que ocurrio y resuelve un ejercicio similar para corregirlo.';
+  }
+  return 'Dedica un bloque enfocado: estudia el tema y comprueba tu avance resolviendo ejercicios al final.';
+};
+
+/** Etiqueta corta del foco de un bloque (motor local). */
+const localBlockFocus = (item) => {
+  if (item.masteryScore !== null && item.masteryScore < 35) return 'Reconstruir la base';
+  if (item.masteryScore !== null) return 'Refuerzo practico';
+  if (/tarjeta/i.test(item.title)) return 'Repaso espaciado';
+  if (/error/i.test(item.title)) return 'Corregir errores';
+  return 'Estudio enfocado';
+};
+
+/** Compone el plan comentado con el motor local determinista de STUDIA. */
+const generateLocalRescue = (plan) => {
+  const weakCount = plan.context?.weakTopics?.length || 0;
+  const diagnostic =
+    plan.itemCount > 0
+      ? `Quedan ${plan.daysAvailable} día(s) hasta el examen y tienes ${plan.itemCount} bloque(s) planificados. Prioriza los ${weakCount} tema(s) de menor dominio, corrige tus errores recurrentes y cierra cada sesión con un repaso activo.`
+      : 'No se detectaron temas débiles, errores recurrentes ni tarjetas pendientes: mantén tu repaso habitual hasta el examen.';
+
+  const blocks = (plan.items || []).map((item, index) => ({
+    index,
+    focus: localBlockFocus(item),
+    strategy: localBlockStrategy(item),
+  }));
+
+  return { diagnostic, blocks };
+};
+
+/**
+ * Study Rescue: comenta con IA el plan de rescate ya calculado sobre datos
+ * reales. Devuelve un diagnostico global y una estrategia por bloque, con la
+ * misma metadata de procedencia que el resto del modulo de IA.
+ *
+ * @param {object} plan Plan de `studyRescueModel.buildPlan` (con `subjectName`).
+ */
+export const generateRescuePlan = async (plan) => {
+  const items = Array.isArray(plan.items) ? plan.items : [];
+  const provider = env.ai.geminiApiKey ? 'gemini' : env.ai.openaiApiKey ? 'openai' : null;
+
+  const systemPrompt = `Eres STUDIA Study Rescue Coach, un entrenador académico de la plataforma STUDIA.
+Recibes un plan de rescate pre-examen YA CALCULADO a partir de los datos reales del estudiante (dominio por tema, errores recurrentes y tarjetas pendientes).
+Tu tarea es COMENTARLO pedagógicamente, sin cambiar fechas, prioridades ni duraciones.
+Devuelve EXCLUSIVAMENTE un objeto JSON válido con esta forma exacta:
+{"diagnostic":"...","blocks":[{"index":0,"focus":"...","strategy":"..."}]}
+Reglas:
+- "diagnostic": diagnóstico global breve (2-4 frases): situación, riesgo y enfoque recomendado. Motivador y concreto.
+- "blocks": un objeto por CADA bloque recibido, repitiendo su MISMO "index".
+- "strategy": 1-3 frases con una estrategia de estudio concreta y accionable para ese bloque (técnica, pasos y cómo comprobar el avance).
+- "focus": etiqueta de 2-4 palabras con el foco del bloque.
+- Escribe en español y no inventes materias, temas ni cifras que no aparezcan en los datos.`;
+
+  const blockLines = items
+    .map((item, index) =>
+      [
+        index,
+        item.title,
+        item.subjectName || plan.subjectName || 'Sin materia',
+        item.masteryScore !== null ? `dominio ${item.masteryScore}%` : 'sin dominio medido',
+        item.priority,
+        `${item.estimatedMinutes} min`,
+        item.reason || item.description,
+      ].join(' | ')
+    )
+    .join('\n');
+
+  const userInstruction = `Fecha del examen: ${plan.examDate} (${plan.daysAvailable} día(s) disponibles).
+Tiempo disponible al día: ${plan.availableMinutesPerDay} min.
+Materia objetivo: ${plan.subjectName || 'Todas mis materias'}.
+Temas débiles considerados: ${plan.context?.weakTopics?.map((t) => `${t.name} (${t.masteryScore}%)`).join(', ') || 'ninguno'}.
+Tarjetas pendientes de repaso: ${plan.context?.dueFlashcards ?? 0}.
+Patrones de error recurrentes: ${plan.context?.recurringPatterns ?? 0}.
+Bloques del plan (index | título | materia | dominio | prioridad | minutos | motivo):
+${blockLines || '(sin bloques)'}`;
+
+  let raw = null;
+  let providerNotice = null;
+  let modelUsed = null;
+
+  if (provider === 'gemini') {
+    const candidateModels = [env.ai.geminiModel, ...GEMINI_FALLBACK_MODELS].filter(
+      (model, index, all) => model && all.indexOf(model) === index
+    );
+    modelUsed = env.ai.geminiModel;
+
+    const geminiBody = {
+      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${userInstruction}` }] }],
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 2000,
+        responseMimeType: 'application/json',
+      },
+    };
+
+    for (const model of candidateModels) {
+      const result = await requestGeminiModel(model, geminiBody);
+      if (result.text) {
+        raw = result.text;
+        modelUsed = model;
+        break;
+      }
+      providerNotice = result.notice;
+      console.warn('[ai:rescue]', `${model}: ${result.notice}`);
+      if (result.aborted) break;
+    }
+  } else if (provider === 'openai') {
+    modelUsed = env.ai.openaiModel;
+    try {
+      const response = await requestWithTimeout(`${env.ai.openaiBaseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.ai.openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: env.ai.openaiModel,
+          temperature: 0.5,
+          max_tokens: 2000,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userInstruction },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        raw = extractOpenAiText(await response.json());
+      } else {
+        providerNotice = `El proveedor de IA respondió con estado ${response.status}.`;
+        console.warn('[ai:rescue]', providerNotice);
+      }
+    } catch (apiErr) {
+      providerNotice = `No se pudo contactar con el proveedor de IA (${
+        apiErr.name === 'AbortError' ? 'tiempo de espera agotado' : apiErr.message
+      }).`;
+      console.warn('[ai:rescue]', providerNotice);
+    }
+  }
+
+  const provenanceCounts = {
+    weakTopics: plan.context?.weakTopics?.length || 0,
+    dueFlashcards: plan.context?.dueFlashcards || 0,
+    recurringPatterns: plan.context?.recurringPatterns || 0,
+    blocks: items.length,
+  };
+
+  const normalized = normalizeRescue(parseRescueJson(raw), items.length);
+  const local = generateLocalRescue(plan);
+
+  // Comentario REAL del proveedor de IA: validado y no vacio.
+  if (normalized) {
+    const aiBlocks = new Map(normalized.blocks.map((block) => [block.index, block]));
+    const blocks = items.map((_, index) => {
+      const aiBlock = aiBlocks.get(index);
+      const localBlock = local.blocks[index];
+      return {
+        index,
+        focus: aiBlock?.focus || localBlock.focus,
+        strategy: aiBlock?.strategy || localBlock.strategy,
+      };
+    });
+
+    return {
+      isAiConfigured: true,
+      source: provider === 'gemini' ? 'gemini_ai' : 'openai_ai',
+      provider,
+      model: modelUsed,
+      aiGenerated: true,
+      diagnostic: normalized.diagnostic || local.diagnostic,
+      blocks,
+      disclaimer: `Plan comentado por el modelo ${modelUsed} de STUDIA a partir de tus datos académicos reales.`,
+      dataProvenance: {
+        studentRecordsUsed: [
+          'dominio por tema (Knowledge Map)',
+          'errores recurrentes (Error DNA)',
+          'tarjetas pendientes (Memory Lab)',
+        ],
+        counts: provenanceCounts,
+        aiGenerated: true,
+        note: 'Las fechas, prioridades y duraciones provienen de tus registros reales en MySQL; los comentarios y estrategias son sugerencias generadas por IA.',
+      },
+    };
+  }
+
+  // Motor local determinista (sin credenciales o si el proveedor falla).
+  return {
+    isAiConfigured: !!provider,
+    source: 'local_rescue',
+    provider: provider || 'local',
+    model: provider ? modelUsed : null,
+    aiGenerated: false,
+    diagnostic: local.diagnostic,
+    blocks: local.blocks,
+    providerNotice,
+    disclaimer: provider
+      ? 'El proveedor de IA no devolvió un plan comentado válido; se usó el motor local de STUDIA.'
+      : 'Modo Study Rescue local de STUDIA (sin credenciales de IA configuradas). Define GEMINI_API_KEY u OPENAI_API_KEY en backend/.env para activar los comentarios con IA.',
+    dataProvenance: {
+      studentRecordsUsed: [
+        'dominio por tema (Knowledge Map)',
+        'errores recurrentes (Error DNA)',
+        'tarjetas pendientes (Memory Lab)',
+      ],
+      counts: provenanceCounts,
+      aiGenerated: false,
+      note: 'El diagnóstico y las estrategias fueron compuestos por el motor local de STUDIA a partir de tus registros reales; no provienen de un modelo de IA externo.',
+    },
+  };
 };

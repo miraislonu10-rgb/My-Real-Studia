@@ -40,6 +40,20 @@ export const env = {
   apiPrefix: process.env.API_PREFIX || '/api',
   corsOrigin: toList(process.env.CORS_ORIGIN, 'http://localhost:5173'),
   frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+  /**
+   * Politica SameSite de la cookie de refresco.
+   *  - 'lax'  : frontend y API bajo el mismo sitio (local, o API publicada en el mismo dominio).
+   *  - 'none' : frontend y API en dominios distintos (por ejemplo Vercel + Render);
+   *             exige HTTPS, por eso en produccion es el valor por defecto.
+   */
+  cookieSameSite: (process.env.COOKIE_SAME_SITE || (IS_PRODUCTION ? 'none' : 'lax')).toLowerCase(),
+  /**
+   * Proxies de confianza por delante del servidor (Render, Railway, Vercel).
+   * Necesario para que Express lea la IP real del cliente desde X-Forwarded-For
+   * y para que el limitador de peticiones no agrupe a todos los usuarios en una
+   * sola IP.
+   */
+  trustProxy: toInt(process.env.TRUST_PROXY, IS_PRODUCTION ? 1 : 0),
 
   db: {
     host: process.env.DB_HOST || '127.0.0.1',

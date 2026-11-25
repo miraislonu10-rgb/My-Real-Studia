@@ -10,10 +10,12 @@ import StatusMessage from '../components/molecules/StatusMessage.jsx';
 /**
  * Panel principal tras iniciar sesion.
  * Muestra los datos de la cuenta, el perfil academico y los accesos
- * disponibles segun el rol (estudiante o administrador).
+ * disponibles segun el rol (estudiante, docente o administrador).
  */
+const ROLE_LABELS = { student: 'estudiante', tutor: 'docente', admin: 'administrador' };
+
 export default function Dashboard() {
-  const { user, fullName, isAdmin } = useAuth();
+  const { user, fullName, isAdmin, isStudent, isTeacher } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
@@ -52,12 +54,33 @@ export default function Dashboard() {
     <section className="page">
       <h2 className="page__title">Hola, {fullName || user?.email}</h2>
       <p className="page__text">
-        Has iniciado sesion como <strong>{isAdmin ? 'administrador' : 'estudiante'}</strong>.
+        Has iniciado sesion como <strong>{ROLE_LABELS[user?.role] || user?.role}</strong>.
       </p>
 
       {error && (
         <div className="status status--error" role="alert">
           {error}
+        </div>
+      )}
+
+      {isTeacher && (
+        <div className="card">
+          <h3>Docencia — acompanamiento del grupo</h3>
+          <p className="hint">
+            Revisa en modo solo lectura las estadisticas del grupo, el nombre de cada alumno, su
+            progreso y los temas que estan viendo. Desde aqui tambien puedes abrir la ficha
+            individual de cada estudiante.
+          </p>
+          <div className="actions">
+            <Link className="button button--primary" to="/docencia">
+              Ir a Docencia
+            </Link>
+            {isAdmin && (
+              <Link className="button button--secondary" to="/admin/usuarios">
+                Administrar usuarios
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
@@ -71,7 +94,7 @@ export default function Dashboard() {
             </tr>
             <tr>
               <th>Rol</th>
-              <td>{user?.role === 'admin' ? 'Administrador' : 'Estudiante'}</td>
+              <td>{ROLE_LABELS[user?.role] ? ROLE_LABELS[user?.role][0].toUpperCase() + ROLE_LABELS[user?.role].slice(1) : user?.role}</td>
             </tr>
             <tr>
               <th>Identificador publico</th>
@@ -112,7 +135,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!isAdmin && (
+      {isStudent && (
         <div className="card">
           <h3>Datos de ejemplo</h3>
           <p className="hint">
@@ -133,8 +156,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="card">
-        <h3>Herramientas inteligentes de aprendizaje</h3>
+      {isStudent && (
+        <div className="card">
+          <h3>Herramientas inteligentes de aprendizaje</h3>
         <p className="hint">Acceso directo a tus módulos de estudio activo, planificación y análisis de progreso.</p>
         <div className="grid grid--2" style={{ gap: '1rem', marginTop: '1rem' }}>
           <div style={{ background: 'var(--warm-50)', padding: '1.25rem', borderRadius: 'var(--radius)', border: '1px solid var(--lav-200)' }}>
@@ -207,24 +231,34 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       <div className="actions">
-        <Link className="button button--primary" to="/cronometro">
-          ⏱ Smart Focus
-        </Link>
-        <Link className="button button--secondary" to="/planificador">
-          📅 Smart Planner
-        </Link>
-        <Link className="button button--secondary" to="/diario-errores">
-          📓 Diario de errores
-        </Link>
-        <Link className="button button--ghost" to="/perfil-aprendizaje">
-          🧠 Perfil de aprendizaje
-        </Link>
-        <Link className="button button--ghost" to="/estadisticas">
-          📊 Estadísticas
-        </Link>
+        {isStudent && (
+          <>
+            <Link className="button button--primary" to="/cronometro">
+              ⏱ Smart Focus
+            </Link>
+            <Link className="button button--secondary" to="/planificador">
+              📅 Smart Planner
+            </Link>
+            <Link className="button button--secondary" to="/diario-errores">
+              📓 Diario de errores
+            </Link>
+            <Link className="button button--ghost" to="/perfil-aprendizaje">
+              🧠 Perfil de aprendizaje
+            </Link>
+            <Link className="button button--ghost" to="/estadisticas">
+              📊 Estadísticas
+            </Link>
+          </>
+        )}
+        {isTeacher && (
+          <Link className="button button--primary" to="/docencia">
+            Docencia
+          </Link>
+        )}
         <Link className="button button--ghost" to="/perfil">
           Mi cuenta
         </Link>

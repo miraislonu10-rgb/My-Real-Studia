@@ -11,9 +11,21 @@
  * Authorization para no exponerse a CSRF.
  */
 
-import { isProduction } from '../config/env.js';
+import { env, isProduction } from '../config/env.js';
 
 export const REFRESH_COOKIE_NAME = 'studia_refresh_token';
+
+/**
+ * Atributos comunes de la cookie de refresco.
+ * SameSite=None (frontend y API en dominios distintos) solo es valido junto
+ * con Secure, es decir, sobre HTTPS.
+ */
+const cookieAttributes = () => ({
+  httpOnly: true,
+  sameSite: env.cookieSameSite,
+  secure: env.cookieSameSite === 'none' ? true : isProduction,
+  path: '/api/auth',
+});
 
 /** Lee una cookie concreta del encabezado Cookie. */
 export const readCookie = (req, name) => {
@@ -33,23 +45,12 @@ export const readCookie = (req, name) => {
 
 /** Escribe la cookie del token de refresco. */
 export const setRefreshCookie = (res, token, maxAgeMs) => {
-  res.cookie(REFRESH_COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: isProduction,
-    path: '/api/auth',
-    maxAge: maxAgeMs,
-  });
+  res.cookie(REFRESH_COOKIE_NAME, token, { ...cookieAttributes(), maxAge: maxAgeMs });
 };
 
 /** Elimina la cookie del token de refresco. */
 export const clearRefreshCookie = (res) => {
-  res.clearCookie(REFRESH_COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: isProduction,
-    path: '/api/auth',
-  });
+  res.clearCookie(REFRESH_COOKIE_NAME, cookieAttributes());
 };
 
 export default { REFRESH_COOKIE_NAME, readCookie, setRefreshCookie, clearRefreshCookie };

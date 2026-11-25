@@ -34,6 +34,7 @@ const STUDENT_SECTIONS = [
       { to: '/recursos', label: 'Recursos', icon: 'link' },
       { to: '/cronometro', label: 'Smart Focus', icon: 'clock' },
       { to: '/planificador', label: 'Smart Planner', icon: 'calendar' },
+      { to: '/study-rescue', label: 'Study Rescue', icon: 'shield' },
       { to: '/diario-errores', label: 'Diario de errores', icon: 'alert' },
     ],
   },
@@ -41,6 +42,10 @@ const STUDENT_SECTIONS = [
     label: 'Aprendizaje',
     items: [
       { to: '/memory-lab', label: 'Memory Lab', icon: 'layers' },
+      { to: '/error-dna', label: 'Error DNA', icon: 'bug' },
+      { to: '/knowledge-map', label: 'Knowledge Map', icon: 'map' },
+      { to: '/note-to-quiz', label: 'Note-to-Quiz', icon: 'quiz' },
+      { to: '/passport', label: 'Academic Passport', icon: 'award' },
       { to: '/estadisticas', label: 'Estadisticas', icon: 'chart' },
       { to: '/ai-companion', label: 'AI Companion', icon: 'sparkles' },
       { to: '/perfil-aprendizaje', label: 'Perfil de aprendizaje', icon: 'target' },
@@ -59,8 +64,12 @@ const ADMIN_SECTIONS = [
     ],
   },
   {
+    label: 'Docencia',
+    items: [{ to: '/docencia', label: 'Docencia', icon: 'users' }],
+  },
+  {
     label: 'Administracion',
-    items: [{ to: '/admin/usuarios', label: 'Usuarios', icon: 'users' }],
+    items: [{ to: '/admin/usuarios', label: 'Usuarios', icon: 'settings' }],
   },
   {
     label: 'Contenido academico',
@@ -71,9 +80,24 @@ const ADMIN_SECTIONS = [
   },
 ];
 
+/** Secciones del docente (rol tutor): acompanamiento de los alumnos. */
+const TEACHER_SECTIONS = [
+  {
+    label: 'General',
+    items: [
+      { to: '/panel', label: 'Panel', icon: 'dashboard' },
+      { to: '/perfil', label: 'Mi perfil', icon: 'user' },
+    ],
+  },
+  {
+    label: 'Docencia',
+    items: [{ to: '/docencia', label: 'Docencia', icon: 'users' }],
+  },
+];
+
 export default function Sidebar({ open = false, onNavigate }) {
-  const { isAdmin } = useAuth();
-  const sections = isAdmin ? ADMIN_SECTIONS : STUDENT_SECTIONS;
+  const { isAdmin, isTutor } = useAuth();
+  const sections = isAdmin ? ADMIN_SECTIONS : isTutor ? TEACHER_SECTIONS : STUDENT_SECTIONS;
 
   return (
     <aside className="shell__sidebar" aria-label="Navegacion principal">

@@ -101,6 +101,8 @@ export function AuthProvider({ children }) {
       isLoading: status === 'loading',
       isAdmin: user?.role === 'admin',
       isStudent: user?.role === 'student',
+      isTutor: user?.role === 'tutor',
+      isTeacher: user?.role === 'admin' || user?.role === 'tutor',
       fullName: user ? `${user.firstName} ${user.lastName}` : '',
       signIn,
       signUp,

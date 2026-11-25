@@ -22,4 +22,17 @@ export const consultAiCompanion = async (payload) => {
   return response.data?.data || null;
 };
 
-export default { consultAiCompanion };
+/**
+ * POST /ai/note-to-quiz
+ * Convierte apuntes en ejercicios de practica. El backend genera las preguntas
+ * (con IA o con el motor local) y las persiste como ejercicios reales.
+ * @param {{notes:string, subjectId:number, topicId?:number, subjectName?:string,
+ *          topicName?:string, questionCount?:number, difficultyLevel?:string}} payload
+ * @returns {{exercises:Array, generation:object}|null}
+ */
+export const generateQuizFromNotes = async (payload) => {
+  const response = await api.post('/ai/note-to-quiz', payload, { timeout: 40000 });
+  return response.data?.data || null;
+};
+
+export default { consultAiCompanion, generateQuizFromNotes };

@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "test": "node --test",
     "hash:password": "node scripts/hashPassword.js",
     "create:admin": "node scripts/createAdmin.js"
   },

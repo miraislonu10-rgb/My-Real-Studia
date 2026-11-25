@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+/**
+ * URL base de la API. Se resuelve en este orden:
+ *  1. La etiqueta <meta name="studia-api-url"> de index.html. Permite apuntar
+ *     al backend publicado editando ese archivo en el servidor, sin recompilar.
+ *  2. VITE_API_URL, definida en .env: es la que se usa en desarrollo local.
+ *  3. El backend local por defecto.
+ */
+const metaApiUrl =
+  typeof document !== 'undefined'
+    ? document.querySelector('meta[name="studia-api-url"]')?.content?.trim()
+    : '';
+
+const API_URL = metaApiUrl || import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 /**
  * Error de API normalizado.
@@ -23,8 +35,8 @@ const toApiError = (error) => {
   if (!response) {
     const offline =
       error.code === 'ECONNABORTED'
-        ? 'La peticion tardo demasiado. Verifica que el backend este en ejecucion.'
-        : 'No se pudo conectar con la API. Verifica que el backend este en ejecucion en http://localhost:4000.';
+        ? `La peticion tardo demasiado. Verifica que el backend este en ejecucion en ${API_URL}.`
+        : `No se pudo conectar con la API. Verifica que el backend este en ejecucion en ${API_URL}.`;
     return new ApiError(offline, { code: 'NETWORK_ERROR' });
   }
 

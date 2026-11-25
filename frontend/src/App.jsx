@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
 
 import Layout from './components/layout/Layout.jsx';
@@ -6,27 +6,34 @@ import AuthLayout from './components/templates/AuthLayout.jsx';
 import AppShell from './components/templates/AppShell.jsx';
 import { ProtectedRoute, RoleRoute, PublicOnlyRoute } from './routes/guards.jsx';
 
-import Home from './pages/Home.jsx';
-import NotFound from './pages/NotFound.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
-import ForgotPassword from './pages/ForgotPassword.jsx';
-import ResetPassword from './pages/ResetPassword.jsx';
-import Setup from './pages/Setup.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Profile from './pages/Profile.jsx';
-import SmartFocus from './pages/SmartFocus.jsx';
-import ErrorJournal from './pages/ErrorJournal.jsx';
-import SmartPlanner from './pages/SmartPlanner.jsx';
-import LearningProfile from './pages/LearningProfile.jsx';
-import Analytics from './pages/Analytics.jsx';
-import MemoryLab from './pages/MemoryLab.jsx';
-import AiCompanion from './pages/AiCompanion.jsx';
-import Subjects from './pages/Subjects.jsx';
-import SubjectDetail from './pages/SubjectDetail.jsx';
-import Resources from './pages/Resources.jsx';
-import AdminUsers from './pages/AdminUsers.jsx';
-import AccessDenied from './pages/AccessDenied.jsx';
+const Home = lazy(() => import('./pages/Home.jsx'));
+const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+const Login = lazy(() => import('./pages/Login.jsx'));
+const Register = lazy(() => import('./pages/Register.jsx'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
+const Setup = lazy(() => import('./pages/Setup.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const Profile = lazy(() => import('./pages/Profile.jsx'));
+const SmartFocus = lazy(() => import('./pages/SmartFocus.jsx'));
+const ErrorJournal = lazy(() => import('./pages/ErrorJournal.jsx'));
+const SmartPlanner = lazy(() => import('./pages/SmartPlanner.jsx'));
+const LearningProfile = lazy(() => import('./pages/LearningProfile.jsx'));
+const Analytics = lazy(() => import('./pages/Analytics.jsx'));
+const MemoryLab = lazy(() => import('./pages/MemoryLab.jsx'));
+const ErrorDna = lazy(() => import('./pages/ErrorDna.jsx'));
+const KnowledgeMap = lazy(() => import('./pages/KnowledgeMap.jsx'));
+const StudyRescue = lazy(() => import('./pages/StudyRescue.jsx'));
+const NoteToQuiz = lazy(() => import('./pages/NoteToQuiz.jsx'));
+const AcademicPassport = lazy(() => import('./pages/AcademicPassport.jsx'));
+const AiCompanion = lazy(() => import('./pages/AiCompanion.jsx'));
+const Subjects = lazy(() => import('./pages/Subjects.jsx'));
+const SubjectDetail = lazy(() => import('./pages/SubjectDetail.jsx'));
+const Resources = lazy(() => import('./pages/Resources.jsx'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers.jsx'));
+const Teaching = lazy(() => import('./pages/Teaching.jsx'));
+const StudentProgress = lazy(() => import('./pages/StudentProgress.jsx'));
+const AccessDenied = lazy(() => import('./pages/AccessDenied.jsx'));
 
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'MY REAL STUDIA';
 
@@ -49,10 +56,16 @@ const PAGE_META = {
   '/diario-errores': ['Diario de errores', 'Registra y revisa tus errores recurrentes para mejorar tu aprendizaje.'],
   '/estadisticas': ['Estadisticas', 'Analitica real de tiempo de estudio, sesiones, ejercicios y errores.'],
   '/memory-lab': ['Memory Lab', 'Repasa tus tarjetas con el sistema de repeticion espaciada SM-2.'],
+  '/error-dna': ['Error DNA', 'Detecta los patrones de tus errores recurrentes para corregir su origen.'],
+  '/knowledge-map': ['Knowledge Map', 'Visualiza tu dominio por materia y las relaciones entre temas.'],
+  '/study-rescue': ['Study Rescue', 'Genera un plan de estudio personalizado antes de un examen.'],
+  '/note-to-quiz': ['Note-to-Quiz', 'Convierte tus apuntes en cuestionarios de practica con IA.'],
+  '/passport': ['Academic Passport', 'Habilidades, proyectos, certificaciones y progreso academico real.'],
   '/ai-companion': ['MY REAL STUDIA AI', 'Asistente academico para explicar conceptos, generar ejercicios y analizar errores.'],
   '/perfil-aprendizaje': ['Perfil de aprendizaje', 'Define tus preferencias y objetivos de aprendizaje en MY REAL STUDIA.'],
   '/perfil': ['Mi perfil', 'Consulta y actualiza los datos de tu cuenta y tu perfil de estudiante.'],
   '/materias': ['Materias', 'Crea, edita y organiza las materias que estudias en MY REAL STUDIA.'],
+  '/docencia': ['Docencia', 'Acompanamiento del grupo: progreso, temas en curso y estadisticas de cada alumno.'],
   '/admin/usuarios': ['Gestion de usuarios', 'Administra las cuentas de usuario registradas en MY REAL STUDIA.'],
   '/acceso-denegado': ['Acceso denegado', 'No tienes permisos para acceder a esta seccion de MY REAL STUDIA.'],
 };
@@ -67,6 +80,9 @@ const resolveMeta = (pathname) => {
   if (PAGE_META[pathname]) return PAGE_META[pathname];
   if (/^\/materias\/\d+$/.test(pathname)) {
     return ['Materia', 'Detalle de la materia: gestiona sus temas, tareas y ejercicios en MY REAL STUDIA.'];
+  }
+  if (/^\/docencia\/[0-9a-f-]{36}$/i.test(pathname)) {
+    return ['Progreso del alumno', 'Ficha de solo lectura con el progreso y los temas en curso de un alumno.'];
   }
   return NOT_FOUND_META;
 };
@@ -94,7 +110,14 @@ export default function App() {
   }, [title, description]);
 
   return (
-    <Routes>
+    <Suspense
+      fallback={
+        <div className="page" role="status" aria-live="polite">
+          Cargando página...
+        </div>
+      }
+    >
+      <Routes>
       {/* Publicas exclusivas: acceso y recuperacion (tarjeta centrada) */}
       <Route element={<PublicOnlyRoute />}>
         <Route element={<AuthLayout />}>
@@ -120,6 +143,11 @@ export default function App() {
           <Route path="/diario-errores" element={<ErrorJournal />} />
           <Route path="/estadisticas" element={<Analytics />} />
           <Route path="/memory-lab" element={<MemoryLab />} />
+          <Route path="/error-dna" element={<ErrorDna />} />
+          <Route path="/knowledge-map" element={<KnowledgeMap />} />
+          <Route path="/study-rescue" element={<StudyRescue />} />
+          <Route path="/note-to-quiz" element={<NoteToQuiz />} />
+          <Route path="/passport" element={<AcademicPassport />} />
           <Route path="/ai-companion" element={<AiCompanion />} />
           <Route path="/perfil-aprendizaje" element={<LearningProfile />} />
           <Route path="/materias" element={<Subjects />} />
@@ -138,10 +166,19 @@ export default function App() {
         </Route>
       </Route>
 
+      {/* Docencia (administradores y tutores): acompanamiento de solo lectura */}
+      <Route element={<RoleRoute allow={['admin', 'tutor']} />}>
+        <Route element={<AppShell />}>
+          <Route path="/docencia" element={<Teaching />} />
+          <Route path="/docencia/:uuid" element={<StudentProgress />} />
+        </Route>
+      </Route>
+
       {/* Publicas con cabecera y pie */}
       <Route path="/" element={<Layout><Home /></Layout>} />
       <Route path="/acceso-denegado" element={<Layout><AccessDenied /></Layout>} />
       <Route path="*" element={<Layout><NotFound /></Layout>} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }

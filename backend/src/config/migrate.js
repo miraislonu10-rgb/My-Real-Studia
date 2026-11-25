@@ -234,6 +234,31 @@ export const runMigrations = async () => {
         console.log('[migrate] Tabla flashcard_reviews creada con exito.');
       }
 
+      // 8. Comprobar tabla passport_entries (Academic Passport)
+      if (tableNames.has('users') && !tableNames.has('passport_entries')) {
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS \`passport_entries\` (
+            \`id\`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            \`user_id\`        BIGINT UNSIGNED NOT NULL,
+            \`entry_type\`     ENUM('skill','project','certification','achievement') NOT NULL DEFAULT 'skill',
+            \`title\`          VARCHAR(200)    NOT NULL,
+            \`description\`    TEXT            NULL,
+            \`category\`       VARCHAR(120)    NULL,
+            \`level\`          VARCHAR(60)     NULL,
+            \`link\`           VARCHAR(500)    NULL,
+            \`date_completed\` DATE            NULL,
+            \`created_at\`     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            \`updated_at\`     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (\`id\`),
+            KEY \`idx_passport_user_type\` (\`user_id\`, \`entry_type\`),
+            KEY \`idx_passport_user_date\` (\`user_id\`, \`date_completed\`),
+            CONSTRAINT \`fk_passport_user\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`)
+              ON DELETE CASCADE ON UPDATE CASCADE
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Pasaporte academico: habilidades, proyectos, certificaciones y logros';
+        `);
+        console.log('[migrate] Tabla passport_entries creada con exito.');
+      }
+
       console.log('[migrate] Esquema verificado y actualizado con exito.');
     } finally {
       connection.release();
